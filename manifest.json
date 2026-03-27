@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Better GitHub Draft Button",
+  "version": "1.0.0",
+  "description": "Moves the 'Convert to Draft' button to the top of GitHub pull request pages for quick access.",
+  "content_scripts": [
+    {
+      "matches": ["https://github.com/*/*/pull/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "better-github-draft-button@technocidal",
+      "strict_min_version": "109.0"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.svg",
+    "48": "icons/icon48.svg",
+    "128": "icons/icon128.svg"
+  }
+}
