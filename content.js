@@ -49,8 +49,16 @@
     style.id = 'better-draft-style';
     style.textContent = `
       [data-better-draft-enhanced="btn"],
-      [data-better-draft-enhanced="btn"] * {
+      [data-better-draft-enhanced="btn"] *,
+      [data-better-draft-enhanced="btn"]:hover,
+      [data-better-draft-enhanced="btn"]:hover *,
+      [data-better-draft-enhanced="btn"]:focus,
+      [data-better-draft-enhanced="btn"]:focus * {
         color: #ffffff !important;
+        text-decoration: none !important;
+      }
+      [data-better-draft-enhanced="btn"]:hover {
+        background-color: #7d5300 !important;
       }
     `;
     document.head.appendChild(style);
@@ -103,9 +111,6 @@
       fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif',
       boxShadow: '0 1px 0 rgba(0,0,0,0.1)',
     });
-
-    btn.addEventListener('mouseenter', () => { btn.style.backgroundColor = '#7d5300'; });
-    btn.addEventListener('mouseleave', () => { btn.style.backgroundColor = '#9a6700'; });
 
     // Highlight the "Still in progress? [Convert to draft]" container
     container.setAttribute(ATTR, 'container');
