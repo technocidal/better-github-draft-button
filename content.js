@@ -127,6 +127,17 @@
         btn.setAttribute(ATTR, 'btn');
         Object.assign(btn.style, BTN_STYLES_SUMMARY);
 
+        container.setAttribute(ATTR, 'container');
+        Object.assign(container.style, {
+          border: '1px solid rgba(0,0,0,0.1)',
+          borderRadius: '6px',
+          padding: '6px 10px',
+          marginTop: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        });
+
       }
     }
 
