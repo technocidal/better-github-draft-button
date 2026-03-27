@@ -54,15 +54,7 @@
     for (const el of document.querySelectorAll('button')) {
       if (el.textContent.trim().toLowerCase() !== 'convert to draft') continue;
       if (sidebar && sidebar.contains(el)) continue;
-      // Walk up to find the row container that holds "Still in progress?"
-      let container = el.parentElement;
-      for (let i = 0; i < 5 && container && container !== document.body; i++) {
-        if (container.textContent.toLowerCase().includes('still in progress')) {
-          return { btn: el, container };
-        }
-        container = container.parentElement;
-      }
-      return { btn: el, container: el.parentElement };
+      return { btn: el };
     }
     return null;
   }
@@ -161,21 +153,13 @@
       }
     }
 
-    // 3. Merge-box button — style in place, no container
+    // 3. Merge-box button — style in place, leave container alone
     const mergeFound = findMergeBoxDraftBtn();
     if (mergeFound) {
-      const { btn: mergeBtn, container: mergeContainer } = mergeFound;
+      const { btn: mergeBtn } = mergeFound;
       if (!mergeBtn.getAttribute(ATTR)) {
         mergeBtn.setAttribute(ATTR, 'merge-btn');
         Object.assign(mergeBtn.style, BTN_STYLES);
-        // Ensure the row has consistent padding so the button isn't flush against the edge
-        mergeContainer.setAttribute(ATTR, 'merge-container');
-        Object.assign(mergeContainer.style, {
-          paddingRight: '16px',
-          paddingLeft: '16px',
-          paddingTop: '8px',
-          paddingBottom: '8px',
-        });
       }
     }
   }
