@@ -18,39 +18,40 @@
    * sticky header).
    */
   function findSidebarDraftLink() {
-    // GitHub renders "Still in progress? Convert to draft" in both the sidebar
-    // and the merge/checks area. We want the sidebar one.
-    // Prefer searching inside known sidebar containers first.
-    const sidebarRoots = [
-      ...document.querySelectorAll(
-        '.Layout-sidebar, .discussion-sidebar, .js-discussion-sidebar, ' +
-        '[data-target="issue-sidebar"], aside'
-      ),
-    ];
-    // Fall back to the whole document if no sidebar container found
-    const searchRoots = sidebarRoots.length ? sidebarRoots : [document.body];
+    // Collect every "Still in progress? … Convert to draft" occurrence on the page.
+    const candidates = [];
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+    let node;
+    while ((node = walker.nextNode())) {
+      if (!node.textContent.toLowerCase().includes('still in progress')) continue;
 
-    for (const root of searchRoots) {
-      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
-      let node;
-      while ((node = walker.nextNode())) {
-        if (!node.textContent.toLowerCase().includes('still in progress')) continue;
+      const tightContainer = node.parentElement;
+      if (!tightContainer) continue;
 
-        const tightContainer = node.parentElement;
-        if (!tightContainer) continue;
-
-        // Search up a few levels for the link, but always highlight tightContainer
-        let search = tightContainer;
-        for (let i = 0; i < 3 && search && search !== document.body; i++) {
-          const link = search.querySelector('a, button');
-          if (link && link.textContent.trim().toLowerCase() === 'convert to draft') {
-            return { btn: link, container: tightContainer };
-          }
-          search = search.parentElement;
+      // Search up a few levels for the link, always keeping tightContainer for styling.
+      let search = tightContainer;
+      for (let i = 0; i < 3 && search && search !== document.body; i++) {
+        const link = search.querySelector('a, button');
+        if (link && link.textContent.trim().toLowerCase() === 'convert to draft') {
+          candidates.push({ btn: link, container: tightContainer });
+          break;
         }
+        search = search.parentElement;
       }
     }
-    return null;
+
+    if (candidates.length === 0) return null;
+    if (candidates.length === 1) return candidates[0];
+
+    // When there are multiple (sidebar + merge/checks area), the sidebar is the
+    // right-hand column — its left edge is past the horizontal midpoint of the page.
+    const mid = window.innerWidth / 2;
+    const sidebar = candidates.find(({ container }) => {
+      const rect = container.getBoundingClientRect();
+      return rect.width > 0 && rect.left > mid;
+    });
+
+    return sidebar || candidates[0];
   }
 
   function revert() {
