@@ -18,38 +18,28 @@
    * sticky header).
    */
   function findSidebarDraftLink() {
-    // GitHub renders "Still in progress? Convert to draft" in both the sidebar
-    // and the merge/checks area. We want the sidebar one.
-    // Prefer searching inside known sidebar containers first.
-    const sidebarRoots = [
-      ...document.querySelectorAll(
-        '.Layout-sidebar, .discussion-sidebar, .js-discussion-sidebar, ' +
-        '[data-target="issue-sidebar"], aside'
-      ),
-    ];
-    // Fall back to the whole document if no sidebar container found
-    const searchRoots = sidebarRoots.length ? sidebarRoots : [document.body];
+    // The sidebar "Convert to draft" is a <summary> element inside a <details> inside
+    // #partial-discussion-sidebar. The merge-box version is a <button>. Searching for
+    // <summary> elements scoped to the sidebar reliably avoids the merge-box version.
+    const sidebar = document.getElementById('partial-discussion-sidebar');
+    const scope = sidebar || document;
 
-    for (const root of searchRoots) {
-      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
-      let node;
-      while ((node = walker.nextNode())) {
-        if (!node.textContent.toLowerCase().includes('still in progress')) continue;
+    for (const el of scope.querySelectorAll('summary')) {
+      if (el.textContent.trim().toLowerCase() !== 'convert to draft') continue;
 
-        const tightContainer = node.parentElement;
-        if (!tightContainer) continue;
-
-        // Search up a few levels for the link, but always highlight tightContainer
-        let search = tightContainer;
-        for (let i = 0; i < 3 && search && search !== document.body; i++) {
-          const link = search.querySelector('a, button');
-          if (link && link.textContent.trim().toLowerCase() === 'convert to draft') {
-            return { btn: link, container: tightContainer };
-          }
-          search = search.parentElement;
+      // Walk up to find the container that also holds "Still in progress?"
+      let container = el.parentElement;
+      for (let i = 0; i < 5 && container && container !== document.body; i++) {
+        if (container.textContent.toLowerCase().includes('still in progress')) {
+          return { btn: el, container };
         }
+        container = container.parentElement;
       }
+
+      // Found the summary but no "Still in progress?" nearby — still use it
+      return { btn: el, container: el.parentElement };
     }
+
     return null;
   }
 
