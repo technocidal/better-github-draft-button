@@ -54,7 +54,15 @@
     for (const el of document.querySelectorAll('button')) {
       if (el.textContent.trim().toLowerCase() !== 'convert to draft') continue;
       if (sidebar && sidebar.contains(el)) continue;
-      return { btn: el };
+      // Walk up to find the row that holds "Still in progress?"
+      let container = el.parentElement;
+      for (let i = 0; i < 5 && container && container !== document.body; i++) {
+        if (container.textContent.toLowerCase().includes('still in progress')) {
+          return { btn: el, container };
+        }
+        container = container.parentElement;
+      }
+      return { btn: el, container: el.parentElement };
     }
     return null;
   }
@@ -69,18 +77,11 @@
       [data-better-draft-enhanced="btn"]:hover,
       [data-better-draft-enhanced="btn"]:hover *,
       [data-better-draft-enhanced="btn"]:focus,
-      [data-better-draft-enhanced="btn"]:focus *,
-      [data-better-draft-enhanced="header-btn"],
-      [data-better-draft-enhanced="header-btn"] *,
-      [data-better-draft-enhanced="header-btn"]:hover,
-      [data-better-draft-enhanced="header-btn"]:hover *,
-      [data-better-draft-enhanced="header-btn"]:focus,
-      [data-better-draft-enhanced="header-btn"]:focus * {
+      [data-better-draft-enhanced="btn"]:focus * {
         color: #ffffff !important;
         text-decoration: none !important;
       }
-      [data-better-draft-enhanced="btn"]:hover,
-      [data-better-draft-enhanced="header-btn"]:hover {
+      [data-better-draft-enhanced="btn"]:hover {
         background-color: #7d5300 !important;
       }
       [data-better-draft-enhanced="merge-btn"],
@@ -98,11 +99,6 @@
   }
 
   function revert() {
-    // Remove injected header button from DOM entirely
-    for (const el of document.querySelectorAll('[' + ATTR + '="header-btn"]')) {
-      el.remove();
-    }
-    // Unstyle everything else
     for (const el of document.querySelectorAll('[' + ATTR + ']')) {
       el.removeAttribute(ATTR);
       el.removeAttribute('style');
@@ -140,26 +136,39 @@
           justifyContent: 'space-between',
         });
       }
-
-      // 2. Header button — delegates click to sidebar summary
-      const headerActions = document.querySelector('.gh-header-actions');
-      if (headerActions && !headerActions.querySelector('[' + ATTR + '="header-btn"]')) {
-        const headerBtn = document.createElement('button');
-        headerBtn.setAttribute(ATTR, 'header-btn');
-        headerBtn.textContent = 'Convert to draft';
-        Object.assign(headerBtn.style, BTN_STYLES);
-        headerBtn.addEventListener('click', () => btn.click());
-        headerActions.prepend(headerBtn);
-      }
     }
 
-    // 3. Merge-box button — style in place, leave container alone
+    // 2. Merge-box button — style in place and align right edge with merge box
     const mergeFound = findMergeBoxDraftBtn();
     if (mergeFound) {
-      const { btn: mergeBtn } = mergeFound;
+      const { btn: mergeBtn, container: mergeRow } = mergeFound;
       if (!mergeBtn.getAttribute(ATTR)) {
         mergeBtn.setAttribute(ATTR, 'merge-btn');
         Object.assign(mergeBtn.style, BTN_STYLES);
+
+        // Find the bordered merge box (previous sibling of the row or an ancestor's
+        // previous sibling) and add paddingRight so our row's right edge matches it.
+        mergeRow.setAttribute(ATTR, 'merge-row');
+        requestAnimationFrame(() => {
+          // Walk up from the row to find a sibling that looks like the merge box
+          let node = mergeRow;
+          let mergeBox = null;
+          while (node && node !== document.body && !mergeBox) {
+            const prev = node.previousElementSibling;
+            if (prev && prev.getBoundingClientRect().width > 100) {
+              mergeBox = prev;
+            }
+            node = node.parentElement;
+          }
+          if (mergeBox) {
+            const boxRight = mergeBox.getBoundingClientRect().right;
+            const rowRight = mergeRow.getBoundingClientRect().right;
+            const diff = rowRight - boxRight;
+            if (diff > 0) {
+              mergeRow.style.paddingRight = diff + 'px';
+            }
+          }
+        });
       }
     }
   }
