@@ -4,9 +4,7 @@
   const ATTR = 'data-better-draft-enhanced';
   let enhanceTimeout = null;
 
-  const BTN_STYLES = {
-    display: 'inline-flex',
-    alignItems: 'center',
+  const BTN_STYLES_BASE = {
     backgroundColor: '#0969da',
     color: '#ffffff',
     border: '1px solid rgba(0,0,0,0.15)',
@@ -21,6 +19,11 @@
     fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif',
     boxShadow: '0 1px 0 rgba(0,0,0,0.1)',
   };
+
+  // <summary> has a <details-dialog> child — inline-flex would pull it into
+  // the layout and blow up the button size. Use inline-block instead.
+  const BTN_STYLES_SUMMARY = { ...BTN_STYLES_BASE, display: 'inline-block' };
+  const BTN_STYLES_BUTTON  = { ...BTN_STYLES_BASE, display: 'inline-flex', alignItems: 'center' };
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -122,7 +125,7 @@
 
       if (!btn.getAttribute(ATTR)) {
         btn.setAttribute(ATTR, 'btn');
-        Object.assign(btn.style, BTN_STYLES);
+        Object.assign(btn.style, BTN_STYLES_SUMMARY);
 
       }
     }
@@ -133,7 +136,7 @@
       const { btn: mergeBtn, container: mergeRow } = mergeFound;
       if (!mergeBtn.getAttribute(ATTR)) {
         mergeBtn.setAttribute(ATTR, 'merge-btn');
-        Object.assign(mergeBtn.style, BTN_STYLES);
+        Object.assign(mergeBtn.style, BTN_STYLES_BUTTON);
 
         // Find the bordered merge box (previous sibling of the row or an ancestor's
         // previous sibling) and add paddingRight so our row's right edge matches it.
