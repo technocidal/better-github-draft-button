@@ -123,32 +123,6 @@
 
   // ── Injection logic ───────────────────────────────────────────────────────
 
-  /**
-   * Find the element that acts as the anchor for the "Code" dropdown button.
-   * The "Code" button is a <details> or <summary> in the PR header actions row.
-   * We insert our button just before that element (or its closest group wrapper).
-   */
-  function findCodeButtonAnchor() {
-    // The "Code" button is a <details> element whose <summary> contains "Code"
-    const details = document.querySelectorAll('details');
-    for (const d of details) {
-      const summary = d.querySelector('summary');
-      if (summary && summary.textContent.trim().toLowerCase().startsWith('code')) {
-        return d;
-      }
-    }
-
-    // Fallback: find a <summary> or <button> with text "Code"
-    for (const el of document.querySelectorAll('summary, button, a')) {
-      if (el.textContent.trim().toLowerCase() === 'code') {
-        // Return the closest wrapping group or the element itself
-        return el.closest('details') || el;
-      }
-    }
-
-    return null;
-  }
-
   function injectButton() {
     if (!isPullRequestPage()) {
       removeButton();
@@ -165,25 +139,27 @@
 
     const draftBtn = createDraftButton();
 
-    // 1. Insert right before the "Code" button in the same row
-    const codeAnchor = findCodeButtonAnchor();
-    if (codeAnchor) {
-      codeAnchor.parentNode.insertBefore(draftBtn, codeAnchor);
-      return;
-    }
-
-    // 2. Append into .gh-header-actions (the right-side action buttons in the PR header)
+    // The "Code ▼" dropdown and merge status buttons live in .gh-header-actions.
+    // Only search within that container to avoid matching the repo nav "Code" tab.
     const headerActions = document.querySelector('.gh-header-actions');
     if (headerActions) {
+      // Insert before the "Code" <details> dropdown if present
+      for (const d of headerActions.querySelectorAll('details')) {
+        const summary = d.querySelector('summary');
+        if (summary && summary.textContent.trim().toLowerCase().startsWith('code')) {
+          headerActions.insertBefore(draftBtn, d);
+          return;
+        }
+      }
+      // No Code dropdown found — just append to the actions row
       headerActions.appendChild(draftBtn);
       return;
     }
 
-    // 3. Prepend into .gh-header (whole PR header block)
+    // Fallback: prepend into the whole PR header block
     const ghHeader = document.querySelector('.gh-header');
     if (ghHeader) {
-      ghHeader.insertBefore(draftBtn, ghHeader.firstChild);
-      return;
+      ghHeader.appendChild(draftBtn);
     }
   }
 
