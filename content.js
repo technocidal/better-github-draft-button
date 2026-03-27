@@ -10,25 +10,46 @@
     return /^\/[^/]+\/[^/]+\/pull\/\d+(\/|$)/.test(window.location.pathname);
   }
 
-  function findConvertToDraftButton() {
-    const byClass = document.querySelector('.js-convert-draft-button');
-    if (byClass) return byClass;
+  /**
+   * Find the "Convert to draft" link/button that sits next to the
+   * "Still in progress?" label in the PR sidebar.
+   * We anchor on the "Still in progress?" text node to avoid matching any
+   * other "Convert to draft" elements GitHub may render elsewhere (e.g. the
+   * sticky header).
+   */
+  function findSidebarDraftLink() {
+    // GitHub renders "Still in progress? Convert to draft" in both the sidebar
+    // and the merge/checks area. We want the sidebar one.
+    // Prefer searching inside known sidebar containers first.
+    const sidebarRoots = [
+      ...document.querySelectorAll(
+        '.Layout-sidebar, .discussion-sidebar, .js-discussion-sidebar, ' +
+        '[data-target="issue-sidebar"], aside'
+      ),
+    ];
+    // Fall back to the whole document if no sidebar container found
+    const searchRoots = sidebarRoots.length ? sidebarRoots : [document.body];
 
-    for (const el of document.querySelectorAll('button, a, input[type="submit"]')) {
-      const text = (el.value || el.textContent || '').trim().toLowerCase();
-      if (text === 'convert to draft') return el;
+    for (const root of searchRoots) {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+      let node;
+      while ((node = walker.nextNode())) {
+        if (!node.textContent.toLowerCase().includes('still in progress')) continue;
+
+        const tightContainer = node.parentElement;
+        if (!tightContainer) continue;
+
+        // Search up a few levels for the link, but always highlight tightContainer
+        let search = tightContainer;
+        for (let i = 0; i < 3 && search && search !== document.body; i++) {
+          const link = search.querySelector('a, button');
+          if (link && link.textContent.trim().toLowerCase() === 'convert to draft') {
+            return { btn: link, container: tightContainer };
+          }
+          search = search.parentElement;
+        }
+      }
     }
-
-    const convertForm = document.querySelector(
-      'form[action*="convert_to_draft"], form[action*="convert-to-draft"]'
-    );
-    if (convertForm) {
-      const btn = convertForm.querySelector(
-        'button[type="submit"], input[type="submit"], button:not([type])'
-      );
-      if (btn) return btn;
-    }
-
     return null;
   }
 
@@ -47,17 +68,19 @@
       return;
     }
 
-    const btn = findConvertToDraftButton();
-    if (!btn) {
+    const found = findSidebarDraftLink();
+    if (!found) {
       revert();
       return;
     }
+
+    const { btn, container } = found;
 
     // Already enhanced
     if (btn.getAttribute(ATTR)) return;
     btn.setAttribute(ATTR, 'btn');
 
-    // Style the "Convert to draft" element to look like a proper button
+    // Make the link look like a real button
     Object.assign(btn.style, {
       display: 'inline-flex',
       alignItems: 'center',
@@ -77,39 +100,19 @@
       boxShadow: '0 1px 0 rgba(0,0,0,0.1)',
     });
 
-    btn.addEventListener('mouseenter', () => {
-      btn.style.backgroundColor = '#7d5300';
-    });
-    btn.addEventListener('mouseleave', () => {
-      btn.style.backgroundColor = '#9a6700';
-    });
+    btn.addEventListener('mouseenter', () => { btn.style.backgroundColor = '#7d5300'; });
+    btn.addEventListener('mouseleave', () => { btn.style.backgroundColor = '#9a6700'; });
 
-    // Walk up to find the container that holds "Still in progress?" text
-    // and highlight the whole block
-    let container = btn.parentElement;
-    while (container && container !== document.body) {
-      if ((container.textContent || '').toLowerCase().includes('still in progress')) {
-        break;
-      }
-      // Stop at common block elements that are unlikely to be the right wrapper
-      if (['FORM', 'SECTION', 'ARTICLE', 'MAIN', 'ASIDE'].includes(container.tagName)) {
-        container = null;
-        break;
-      }
-      container = container.parentElement;
-    }
-
-    if (container && container !== document.body) {
-      container.setAttribute(ATTR, 'container');
-      Object.assign(container.style, {
-        backgroundColor: '#fff8c5',
-        border: '1px solid rgba(212,167,44,0.5)',
-        borderRadius: '6px',
-        padding: '8px 12px',
-        marginTop: '8px',
-        lineHeight: '28px',
-      });
-    }
+    // Highlight the "Still in progress? [Convert to draft]" container
+    container.setAttribute(ATTR, 'container');
+    Object.assign(container.style, {
+      backgroundColor: '#fff8c5',
+      border: '1px solid rgba(212,167,44,0.5)',
+      borderRadius: '6px',
+      padding: '8px 12px',
+      marginTop: '8px',
+      lineHeight: '28px',
+    });
   }
 
   function scheduleEnhance() {
