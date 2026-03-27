@@ -4,30 +4,38 @@
   const ATTR = 'data-better-draft-enhanced';
   let enhanceTimeout = null;
 
+  const BTN_STYLES = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    backgroundColor: '#9a6700',
+    color: '#ffffff',
+    border: '1px solid rgba(0,0,0,0.15)',
+    borderRadius: '6px',
+    padding: '4px 12px',
+    fontSize: '13px',
+    fontWeight: '500',
+    lineHeight: '20px',
+    cursor: 'pointer',
+    textDecoration: 'none',
+    verticalAlign: 'middle',
+    fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif',
+    boxShadow: '0 1px 0 rgba(0,0,0,0.1)',
+  };
+
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   function isPullRequestPage() {
     return /^\/[^/]+\/[^/]+\/pull\/\d+(\/|$)/.test(window.location.pathname);
   }
 
-  /**
-   * Find the "Convert to draft" link/button that sits next to the
-   * "Still in progress?" label in the PR sidebar.
-   * We anchor on the "Still in progress?" text node to avoid matching any
-   * other "Convert to draft" elements GitHub may render elsewhere (e.g. the
-   * sticky header).
-   */
+  // Sidebar: <summary> inside #partial-discussion-sidebar
   function findSidebarDraftLink() {
-    // The sidebar "Convert to draft" is a <summary> element inside a <details> inside
-    // #partial-discussion-sidebar. The merge-box version is a <button>. Searching for
-    // <summary> elements scoped to the sidebar reliably avoids the merge-box version.
     const sidebar = document.getElementById('partial-discussion-sidebar');
     const scope = sidebar || document;
 
     for (const el of scope.querySelectorAll('summary')) {
       if (el.textContent.trim().toLowerCase() !== 'convert to draft') continue;
 
-      // Walk up to find the container that also holds "Still in progress?"
       let container = el.parentElement;
       for (let i = 0; i < 5 && container && container !== document.body; i++) {
         if (container.textContent.toLowerCase().includes('still in progress')) {
@@ -35,11 +43,19 @@
         }
         container = container.parentElement;
       }
-
-      // Found the summary but no "Still in progress?" nearby — still use it
       return { btn: el, container: el.parentElement };
     }
+    return null;
+  }
 
+  // Merge-box: <button> with "Convert to draft" text, NOT in sidebar
+  function findMergeBoxDraftBtn() {
+    const sidebar = document.getElementById('partial-discussion-sidebar');
+    for (const el of document.querySelectorAll('button')) {
+      if (el.textContent.trim().toLowerCase() !== 'convert to draft') continue;
+      if (sidebar && sidebar.contains(el)) continue;
+      return el;
+    }
     return null;
   }
 
@@ -53,11 +69,28 @@
       [data-better-draft-enhanced="btn"]:hover,
       [data-better-draft-enhanced="btn"]:hover *,
       [data-better-draft-enhanced="btn"]:focus,
-      [data-better-draft-enhanced="btn"]:focus * {
+      [data-better-draft-enhanced="btn"]:focus *,
+      [data-better-draft-enhanced="header-btn"],
+      [data-better-draft-enhanced="header-btn"] *,
+      [data-better-draft-enhanced="header-btn"]:hover,
+      [data-better-draft-enhanced="header-btn"]:hover *,
+      [data-better-draft-enhanced="header-btn"]:focus,
+      [data-better-draft-enhanced="header-btn"]:focus * {
         color: #ffffff !important;
         text-decoration: none !important;
       }
-      [data-better-draft-enhanced="btn"]:hover {
+      [data-better-draft-enhanced="btn"]:hover,
+      [data-better-draft-enhanced="header-btn"]:hover {
+        background-color: #7d5300 !important;
+      }
+      [data-better-draft-enhanced="merge-btn"],
+      [data-better-draft-enhanced="merge-btn"] *,
+      [data-better-draft-enhanced="merge-btn"]:hover,
+      [data-better-draft-enhanced="merge-btn"]:hover * {
+        color: #ffffff !important;
+        text-decoration: none !important;
+      }
+      [data-better-draft-enhanced="merge-btn"]:hover {
         background-color: #7d5300 !important;
       }
     `;
@@ -65,6 +98,11 @@
   }
 
   function revert() {
+    // Remove injected header button from DOM entirely
+    for (const el of document.querySelectorAll('[' + ATTR + '="header-btn"]')) {
+      el.remove();
+    }
+    // Unstyle everything else
     for (const el of document.querySelectorAll('[' + ATTR + ']')) {
       el.removeAttribute(ATTR);
       el.removeAttribute('style');
@@ -79,51 +117,48 @@
       return;
     }
 
+    injectStyles();
+
+    // 1. Sidebar button + yellow container
     const found = findSidebarDraftLink();
-    if (!found) {
-      revert();
-      return;
+    if (found) {
+      const { btn, container } = found;
+
+      if (!btn.getAttribute(ATTR)) {
+        btn.setAttribute(ATTR, 'btn');
+        Object.assign(btn.style, BTN_STYLES);
+
+        container.setAttribute(ATTR, 'container');
+        Object.assign(container.style, {
+          backgroundColor: '#fff8c5',
+          border: '1px solid rgba(212,167,44,0.5)',
+          borderRadius: '6px',
+          padding: '6px 10px',
+          marginTop: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        });
+      }
+
+      // 2. Header button — delegates click to sidebar summary
+      const headerActions = document.querySelector('.gh-header-actions');
+      if (headerActions && !headerActions.querySelector('[' + ATTR + '="header-btn"]')) {
+        const headerBtn = document.createElement('button');
+        headerBtn.setAttribute(ATTR, 'header-btn');
+        headerBtn.textContent = 'Convert to draft';
+        Object.assign(headerBtn.style, BTN_STYLES);
+        headerBtn.addEventListener('click', () => btn.click());
+        headerActions.prepend(headerBtn);
+      }
     }
 
-    injectStyles();
-    const { btn, container } = found;
-
-    // Already enhanced
-    if (btn.getAttribute(ATTR)) return;
-    btn.setAttribute(ATTR, 'btn');
-
-    // Make the link look like a real button
-    Object.assign(btn.style, {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: '5px',
-      backgroundColor: '#9a6700',
-      color: '#ffffff',
-      border: '1px solid rgba(0,0,0,0.15)',
-      borderRadius: '6px',
-      padding: '4px 12px',
-      fontSize: '13px',
-      fontWeight: '500',
-      lineHeight: '20px',
-      cursor: 'pointer',
-      textDecoration: 'none',
-      verticalAlign: 'middle',
-      fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif',
-      boxShadow: '0 1px 0 rgba(0,0,0,0.1)',
-    });
-
-    // Highlight the "Still in progress? [Convert to draft]" container
-    container.setAttribute(ATTR, 'container');
-    Object.assign(container.style, {
-      backgroundColor: '#fff8c5',
-      border: '1px solid rgba(212,167,44,0.5)',
-      borderRadius: '6px',
-      padding: '6px 10px',
-      marginTop: '8px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    });
+    // 3. Merge-box button — style in place, no container
+    const mergeBtn = findMergeBoxDraftBtn();
+    if (mergeBtn && !mergeBtn.getAttribute(ATTR)) {
+      mergeBtn.setAttribute(ATTR, 'merge-btn');
+      Object.assign(mergeBtn.style, BTN_STYLES);
+    }
   }
 
   function scheduleEnhance() {
