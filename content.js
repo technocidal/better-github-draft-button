@@ -118,9 +118,11 @@
       backgroundColor: '#fff8c5',
       border: '1px solid rgba(212,167,44,0.5)',
       borderRadius: '6px',
-      padding: '8px 12px',
+      padding: '6px 10px',
       marginTop: '8px',
-      lineHeight: '28px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
     });
   }
 
