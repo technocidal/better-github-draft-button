@@ -1,8 +1,8 @@
 (function () {
   'use strict';
 
-  const BTN_ID = 'better-github-draft-btn';
-  let injectTimeout = null;
+  const ATTR = 'data-better-draft-enhanced';
+  let enhanceTimeout = null;
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -10,15 +10,11 @@
     return /^\/[^/]+\/[^/]+\/pull\/\d+(\/|$)/.test(window.location.pathname);
   }
 
-  /**
-   * Find the original "Convert to draft" button buried in the PR merge box.
-   */
   function findConvertToDraftButton() {
     const byClass = document.querySelector('.js-convert-draft-button');
     if (byClass) return byClass;
 
-    const clickables = document.querySelectorAll('button, input[type="submit"]');
-    for (const el of clickables) {
+    for (const el of document.querySelectorAll('button, a, input[type="submit"]')) {
       const text = (el.value || el.textContent || '').trim().toLowerCase();
       if (text === 'convert to draft') return el;
     }
@@ -36,146 +32,99 @@
     return null;
   }
 
-  function removeButton() {
-    const el = document.getElementById(BTN_ID);
-    if (el) el.remove();
+  function revert() {
+    for (const el of document.querySelectorAll('[' + ATTR + ']')) {
+      el.removeAttribute(ATTR);
+      el.removeAttribute('style');
+    }
   }
 
-  // ── Button creation ───────────────────────────────────────────────────────
+  // ── Enhancement ───────────────────────────────────────────────────────────
 
-  // GitHub Octicons pencil path
-  const ICON_PENCIL =
-    'M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 ' +
-    '8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.081-.286' +
-    '.235-.547.445-.758l8.61-8.61Zm1.414 1.06a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44' +
-    ' 1.263-1.263a.25.25 0 0 0 0-.354l-1.086-1.086ZM11.189 6.25 9.75 4.81 3.23 ' +
-    '11.33c-.03.03-.052.067-.063.107l-.652 2.283 2.284-.651a.237.237 0 0 0 ' +
-    '.107-.063L11.19 6.25Z';
+  function enhance() {
+    if (!isPullRequestPage()) {
+      revert();
+      return;
+    }
 
-  function buildSvg(pathD) {
-    const NS = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(NS, 'svg');
-    svg.setAttribute('width', '16');
-    svg.setAttribute('height', '16');
-    svg.setAttribute('viewBox', '0 0 16 16');
-    svg.setAttribute('aria-hidden', 'true');
-    svg.setAttribute('focusable', 'false');
-    svg.style.cssText = 'flex-shrink:0;fill:currentColor;vertical-align:text-bottom;';
-    const path = document.createElementNS(NS, 'path');
-    path.setAttribute('d', pathD);
-    svg.appendChild(path);
-    return svg;
-  }
+    const btn = findConvertToDraftButton();
+    if (!btn) {
+      revert();
+      return;
+    }
 
-  function createDraftButton() {
-    const btn = document.createElement('button');
-    btn.id = BTN_ID;
-    btn.type = 'button';
-    btn.setAttribute('aria-label', 'Convert to draft');
+    // Already enhanced
+    if (btn.getAttribute(ATTR)) return;
+    btn.setAttribute(ATTR, 'btn');
 
-    // Match the style of GitHub's header action buttons ("Code", "Edit", etc.)
-    btn.style.cssText = [
-      'display:inline-flex',
-      'align-items:center',
-      'gap:6px',
-      'appearance:none',
-      '-webkit-appearance:none',
-      'background-color:var(--button-default-bgColor-rest,#f6f8fa)',
-      'border:1px solid var(--button-default-borderColor-rest,rgba(27,31,36,0.15))',
-      'border-radius:6px',
-      'box-shadow:var(--button-default-shadow-resting,0 1px 0 rgba(27,31,36,0.04))',
-      'color:var(--button-default-fgColor-rest,#24292f)',
-      'cursor:pointer',
-      'font-size:14px',
-      'font-weight:500',
-      'line-height:20px',
-      'padding:5px 16px',
-      'font-family:inherit',
-      'white-space:nowrap',
-      'flex-shrink:0',
-      'text-decoration:none',
-    ].join(';');
-
-    btn.appendChild(buildSvg(ICON_PENCIL));
-    btn.appendChild(document.createTextNode('Convert to draft'));
+    // Style the "Convert to draft" element to look like a proper button
+    Object.assign(btn.style, {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '5px',
+      backgroundColor: '#9a6700',
+      color: '#ffffff',
+      border: '1px solid rgba(0,0,0,0.15)',
+      borderRadius: '6px',
+      padding: '4px 12px',
+      fontSize: '13px',
+      fontWeight: '500',
+      lineHeight: '20px',
+      cursor: 'pointer',
+      textDecoration: 'none',
+      verticalAlign: 'middle',
+      fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif',
+      boxShadow: '0 1px 0 rgba(0,0,0,0.1)',
+    });
 
     btn.addEventListener('mouseenter', () => {
-      btn.style.backgroundColor = 'var(--button-default-bgColor-hover,#f3f4f6)';
-      btn.style.borderColor = 'var(--button-default-borderColor-hover,rgba(27,31,36,0.3))';
+      btn.style.backgroundColor = '#7d5300';
     });
     btn.addEventListener('mouseleave', () => {
-      btn.style.backgroundColor = 'var(--button-default-bgColor-rest,#f6f8fa)';
-      btn.style.borderColor = 'var(--button-default-borderColor-rest,rgba(27,31,36,0.15))';
-    });
-    btn.addEventListener('click', () => {
-      const orig = findConvertToDraftButton();
-      if (!orig) return;
-      let node = orig.parentElement;
-      while (node) {
-        if (node.tagName === 'DETAILS') node.open = true;
-        node = node.parentElement;
-      }
-      orig.click();
+      btn.style.backgroundColor = '#9a6700';
     });
 
-    return btn;
-  }
-
-  // ── Injection logic ───────────────────────────────────────────────────────
-
-  function injectButton() {
-    if (!isPullRequestPage()) {
-      removeButton();
-      return;
-    }
-
-    const originalBtn = findConvertToDraftButton();
-    if (!originalBtn) {
-      removeButton();
-      return;
-    }
-
-    if (document.getElementById(BTN_ID)) return;
-
-    const draftBtn = createDraftButton();
-
-    // The "Code ▼" dropdown and merge status buttons live in .gh-header-actions.
-    // Only search within that container to avoid matching the repo nav "Code" tab.
-    const headerActions = document.querySelector('.gh-header-actions');
-    if (headerActions) {
-      // Insert before the "Code" <details> dropdown if present
-      for (const d of headerActions.querySelectorAll('details')) {
-        const summary = d.querySelector('summary');
-        if (summary && summary.textContent.trim().toLowerCase().startsWith('code')) {
-          headerActions.insertBefore(draftBtn, d);
-          return;
-        }
+    // Walk up to find the container that holds "Still in progress?" text
+    // and highlight the whole block
+    let container = btn.parentElement;
+    while (container && container !== document.body) {
+      if ((container.textContent || '').toLowerCase().includes('still in progress')) {
+        break;
       }
-      // No Code dropdown found — just append to the actions row
-      headerActions.appendChild(draftBtn);
-      return;
+      // Stop at common block elements that are unlikely to be the right wrapper
+      if (['FORM', 'SECTION', 'ARTICLE', 'MAIN', 'ASIDE'].includes(container.tagName)) {
+        container = null;
+        break;
+      }
+      container = container.parentElement;
     }
 
-    // Fallback: prepend into the whole PR header block
-    const ghHeader = document.querySelector('.gh-header');
-    if (ghHeader) {
-      ghHeader.appendChild(draftBtn);
+    if (container && container !== document.body) {
+      container.setAttribute(ATTR, 'container');
+      Object.assign(container.style, {
+        backgroundColor: '#fff8c5',
+        border: '1px solid rgba(212,167,44,0.5)',
+        borderRadius: '6px',
+        padding: '8px 12px',
+        marginTop: '8px',
+        lineHeight: '28px',
+      });
     }
   }
 
-  function scheduleInject() {
-    clearTimeout(injectTimeout);
-    injectTimeout = setTimeout(injectButton, 300);
+  function scheduleEnhance() {
+    clearTimeout(enhanceTimeout);
+    enhanceTimeout = setTimeout(enhance, 300);
   }
 
   // ── Observers & event listeners ───────────────────────────────────────────
 
-  scheduleInject();
+  scheduleEnhance();
 
   const domObserver = new MutationObserver((mutations) => {
     for (const m of mutations) {
       if (m.addedNodes.length || m.removedNodes.length) {
-        scheduleInject();
+        scheduleEnhance();
         return;
       }
     }
@@ -184,8 +133,8 @@
 
   for (const evt of ['turbo:load', 'turbo:render', 'pjax:end']) {
     document.addEventListener(evt, () => {
-      removeButton();
-      scheduleInject();
+      revert();
+      scheduleEnhance();
     });
   }
 
@@ -193,8 +142,8 @@
   setInterval(() => {
     if (window.location.pathname !== lastPath) {
       lastPath = window.location.pathname;
-      removeButton();
-      scheduleInject();
+      revert();
+      scheduleEnhance();
     }
   }, 1000);
 
