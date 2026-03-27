@@ -122,7 +122,7 @@
       marginTop: '8px',
       display: 'flex',
       alignItems: 'center',
-      gap: '6px',
+      justifyContent: 'space-between',
     });
   }
 
