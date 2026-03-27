@@ -10,25 +10,34 @@
     return /^\/[^/]+\/[^/]+\/pull\/\d+(\/|$)/.test(window.location.pathname);
   }
 
-  function findConvertToDraftButton() {
-    const byClass = document.querySelector('.js-convert-draft-button');
-    if (byClass) return byClass;
-
-    for (const el of document.querySelectorAll('button, a, input[type="submit"]')) {
-      const text = (el.value || el.textContent || '').trim().toLowerCase();
-      if (text === 'convert to draft') return el;
-    }
-
-    const convertForm = document.querySelector(
-      'form[action*="convert_to_draft"], form[action*="convert-to-draft"]'
+  /**
+   * Find the "Convert to draft" link/button that sits next to the
+   * "Still in progress?" label in the PR sidebar.
+   * We anchor on the "Still in progress?" text node to avoid matching any
+   * other "Convert to draft" elements GitHub may render elsewhere (e.g. the
+   * sticky header).
+   */
+  function findSidebarDraftLink() {
+    // Walk all text nodes looking for "still in progress"
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+      null
     );
-    if (convertForm) {
-      const btn = convertForm.querySelector(
-        'button[type="submit"], input[type="submit"], button:not([type])'
-      );
-      if (btn) return btn;
-    }
+    let node;
+    while ((node = walker.nextNode())) {
+      if (!node.textContent.toLowerCase().includes('still in progress')) continue;
 
+      // Found the label — look for a sibling/child link or button
+      let container = node.parentElement;
+      for (let i = 0; i < 4 && container && container !== document.body; i++) {
+        const link = container.querySelector('a, button');
+        if (link && link.textContent.trim().toLowerCase() === 'convert to draft') {
+          return { btn: link, container };
+        }
+        container = container.parentElement;
+      }
+    }
     return null;
   }
 
@@ -47,17 +56,19 @@
       return;
     }
 
-    const btn = findConvertToDraftButton();
-    if (!btn) {
+    const found = findSidebarDraftLink();
+    if (!found) {
       revert();
       return;
     }
+
+    const { btn, container } = found;
 
     // Already enhanced
     if (btn.getAttribute(ATTR)) return;
     btn.setAttribute(ATTR, 'btn');
 
-    // Style the "Convert to draft" element to look like a proper button
+    // Make the link look like a real button
     Object.assign(btn.style, {
       display: 'inline-flex',
       alignItems: 'center',
@@ -77,39 +88,19 @@
       boxShadow: '0 1px 0 rgba(0,0,0,0.1)',
     });
 
-    btn.addEventListener('mouseenter', () => {
-      btn.style.backgroundColor = '#7d5300';
-    });
-    btn.addEventListener('mouseleave', () => {
-      btn.style.backgroundColor = '#9a6700';
-    });
+    btn.addEventListener('mouseenter', () => { btn.style.backgroundColor = '#7d5300'; });
+    btn.addEventListener('mouseleave', () => { btn.style.backgroundColor = '#9a6700'; });
 
-    // Walk up to find the container that holds "Still in progress?" text
-    // and highlight the whole block
-    let container = btn.parentElement;
-    while (container && container !== document.body) {
-      if ((container.textContent || '').toLowerCase().includes('still in progress')) {
-        break;
-      }
-      // Stop at common block elements that are unlikely to be the right wrapper
-      if (['FORM', 'SECTION', 'ARTICLE', 'MAIN', 'ASIDE'].includes(container.tagName)) {
-        container = null;
-        break;
-      }
-      container = container.parentElement;
-    }
-
-    if (container && container !== document.body) {
-      container.setAttribute(ATTR, 'container');
-      Object.assign(container.style, {
-        backgroundColor: '#fff8c5',
-        border: '1px solid rgba(212,167,44,0.5)',
-        borderRadius: '6px',
-        padding: '8px 12px',
-        marginTop: '8px',
-        lineHeight: '28px',
-      });
-    }
+    // Highlight the "Still in progress? [Convert to draft]" container
+    container.setAttribute(ATTR, 'container');
+    Object.assign(container.style, {
+      backgroundColor: '#fff8c5',
+      border: '1px solid rgba(212,167,44,0.5)',
+      borderRadius: '6px',
+      padding: '8px 12px',
+      marginTop: '8px',
+      lineHeight: '28px',
+    });
   }
 
   function scheduleEnhance() {
