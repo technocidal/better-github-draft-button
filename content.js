@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  const BANNER_ID = 'better-github-draft-banner';
+  const BTN_ID = 'better-github-draft-btn';
   let injectTimeout = null;
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -12,38 +12,45 @@
 
   /**
    * Find the original "Convert to draft" button buried in the PR merge box.
-   * Tries a specific class first, then falls back to text content matching.
    */
   function findConvertToDraftButton() {
-    // GitHub has used this class historically
     const byClass = document.querySelector('.js-convert-draft-button');
     if (byClass) return byClass;
 
-    // Search all buttons and submit inputs by text
     const clickables = document.querySelectorAll('button, input[type="submit"]');
     for (const el of clickables) {
       const text = (el.value || el.textContent || '').trim().toLowerCase();
-      if (text === 'convert to draft') {
-        return el;
-      }
+      if (text === 'convert to draft') return el;
     }
 
-    // Search inside any form whose action contains "convert"
-    const convertForm = document.querySelector('form[action*="convert_to_draft"], form[action*="convert-to-draft"]');
+    const convertForm = document.querySelector(
+      'form[action*="convert_to_draft"], form[action*="convert-to-draft"]'
+    );
     if (convertForm) {
-      const btn = convertForm.querySelector('button[type="submit"], input[type="submit"], button:not([type])');
+      const btn = convertForm.querySelector(
+        'button[type="submit"], input[type="submit"], button:not([type])'
+      );
       if (btn) return btn;
     }
 
     return null;
   }
 
-  function removeBanner() {
-    const el = document.getElementById(BANNER_ID);
+  function removeButton() {
+    const el = document.getElementById(BTN_ID);
     if (el) el.remove();
   }
 
-  // ── Banner creation ───────────────────────────────────────────────────────
+  // ── Button creation ───────────────────────────────────────────────────────
+
+  // GitHub Octicons pencil path
+  const ICON_PENCIL =
+    'M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 ' +
+    '8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.081-.286' +
+    '.235-.547.445-.758l8.61-8.61Zm1.414 1.06a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44' +
+    ' 1.263-1.263a.25.25 0 0 0 0-.354l-1.086-1.086ZM11.189 6.25 9.75 4.81 3.23 ' +
+    '11.33c-.03.03-.052.067-.063.107l-.652 2.283 2.284-.651a.237.237 0 0 0 ' +
+    '.107-.063L11.19 6.25Z';
 
   function buildSvg(pathD) {
     const NS = 'http://www.w3.org/2000/svg';
@@ -53,74 +60,32 @@
     svg.setAttribute('viewBox', '0 0 16 16');
     svg.setAttribute('aria-hidden', 'true');
     svg.setAttribute('focusable', 'false');
-    svg.style.cssText = 'flex-shrink:0;fill:currentColor;';
+    svg.style.cssText = 'flex-shrink:0;fill:currentColor;vertical-align:text-bottom;';
     const path = document.createElementNS(NS, 'path');
     path.setAttribute('d', pathD);
     svg.appendChild(path);
     return svg;
   }
 
-  // GitHub Octicons paths
-  const ICON_PENCIL =
-    'M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 ' +
-    '8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.081-.286' +
-    '.235-.547.445-.758l8.61-8.61Zm1.414 1.06a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44' +
-    ' 1.263-1.263a.25.25 0 0 0 0-.354l-1.086-1.086ZM11.189 6.25 9.75 4.81 3.23 ' +
-    '11.33c-.03.03-.052.067-.063.107l-.652 2.283 2.284-.651a.237.237 0 0 0 ' +
-    '.107-.063L11.19 6.25Z';
-  const ICON_X =
-    'M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 ' +
-    '0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215' +
-    'L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 ' +
-    '3.72 4.78a.75.75 0 0 1 0-1.06Z';
+  function createDraftButton() {
+    const btn = document.createElement('button');
+    btn.id = BTN_ID;
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'Convert to draft');
 
-  function createBanner() {
-    const banner = document.createElement('div');
-    banner.id = BANNER_ID;
-    banner.setAttribute('role', 'complementary');
-    banner.setAttribute('aria-label', 'Convert to draft shortcut');
-
-    // Matches GitHub's flash-warn colour scheme
-    banner.style.cssText = [
-      'box-sizing:border-box',
-      'width:100%',
-      'background-color:#fff8c5',
-      'border-bottom:1px solid rgba(212,167,44,0.4)',
-      'padding:8px 16px',
-      'display:flex',
-      'align-items:center',
-      'gap:10px',
-      'font-size:14px',
-      'line-height:1.5',
-      'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif',
-      'color:#57370d',
-      'z-index:1',
-    ].join(';');
-
-    // Icon
-    const icon = buildSvg(ICON_PENCIL);
-    icon.style.color = '#9a6700';
-
-    // Message text
-    const msg = document.createElement('span');
-    msg.textContent = 'Still in progress?';
-    msg.style.cssText = 'flex-grow:1;';
-
-    // Proxy "Convert to draft" button
-    const actionBtn = document.createElement('button');
-    actionBtn.type = 'button';
-    actionBtn.textContent = 'Convert to draft';
-    actionBtn.style.cssText = [
-      'appearance:none',
-      '-webkit-appearance:none',
-      'background-color:#f6f8fa',
-      'border:1px solid rgba(27,31,36,0.15)',
-      'border-radius:6px',
-      'box-shadow:0 1px 0 rgba(27,31,36,0.04),inset 0 1px 0 rgba(255,255,255,0.25)',
-      'color:#24292f',
-      'cursor:pointer',
+    // Match the style of GitHub's header action buttons ("Code", "Edit", etc.)
+    btn.style.cssText = [
       'display:inline-flex',
       'align-items:center',
+      'gap:6px',
+      'appearance:none',
+      '-webkit-appearance:none',
+      'background-color:var(--button-default-bgColor-rest,#f6f8fa)',
+      'border:1px solid var(--button-default-borderColor-rest,rgba(27,31,36,0.15))',
+      'border-radius:6px',
+      'box-shadow:var(--button-default-shadow-resting,0 1px 0 rgba(27,31,36,0.04))',
+      'color:var(--button-default-fgColor-rest,#24292f)',
+      'cursor:pointer',
       'font-size:14px',
       'font-weight:500',
       'line-height:20px',
@@ -128,20 +93,23 @@
       'font-family:inherit',
       'white-space:nowrap',
       'flex-shrink:0',
+      'text-decoration:none',
     ].join(';');
 
-    actionBtn.addEventListener('mouseenter', () => {
-      actionBtn.style.backgroundColor = '#f3f4f6';
-      actionBtn.style.borderColor = 'rgba(27,31,36,0.3)';
+    btn.appendChild(buildSvg(ICON_PENCIL));
+    btn.appendChild(document.createTextNode('Convert to draft'));
+
+    btn.addEventListener('mouseenter', () => {
+      btn.style.backgroundColor = 'var(--button-default-bgColor-hover,#f3f4f6)';
+      btn.style.borderColor = 'var(--button-default-borderColor-hover,rgba(27,31,36,0.3))';
     });
-    actionBtn.addEventListener('mouseleave', () => {
-      actionBtn.style.backgroundColor = '#f6f8fa';
-      actionBtn.style.borderColor = 'rgba(27,31,36,0.15)';
+    btn.addEventListener('mouseleave', () => {
+      btn.style.backgroundColor = 'var(--button-default-bgColor-rest,#f6f8fa)';
+      btn.style.borderColor = 'var(--button-default-borderColor-rest,rgba(27,31,36,0.15))';
     });
-    actionBtn.addEventListener('click', () => {
+    btn.addEventListener('click', () => {
       const orig = findConvertToDraftButton();
       if (!orig) return;
-      // Open any ancestor <details> elements so GitHub's JS can handle the click
       let node = orig.parentElement;
       while (node) {
         if (node.tagName === 'DETAILS') node.open = true;
@@ -150,123 +118,106 @@
       orig.click();
     });
 
-    // Dismiss (×) button
-    const dismissBtn = document.createElement('button');
-    dismissBtn.type = 'button';
-    dismissBtn.setAttribute('aria-label', 'Dismiss');
-    dismissBtn.style.cssText = [
-      'background:none',
-      'border:none',
-      'cursor:pointer',
-      'color:#57370d',
-      'padding:2px',
-      'display:flex',
-      'align-items:center',
-      'border-radius:4px',
-      'flex-shrink:0',
-      'opacity:0.7',
-    ].join(';');
-    dismissBtn.appendChild(buildSvg(ICON_X));
-    dismissBtn.addEventListener('mouseenter', () => { dismissBtn.style.opacity = '1'; });
-    dismissBtn.addEventListener('mouseleave', () => { dismissBtn.style.opacity = '0.7'; });
-    dismissBtn.addEventListener('click', removeBanner);
-
-    banner.appendChild(icon);
-    banner.appendChild(msg);
-    banner.appendChild(actionBtn);
-    banner.appendChild(dismissBtn);
-
-    return banner;
+    return btn;
   }
 
   // ── Injection logic ───────────────────────────────────────────────────────
 
-  function insertBanner(banner) {
-    // 1. After the PR title/header block
-    const ghHeader = document.querySelector('.gh-header');
-    if (ghHeader) {
-      ghHeader.insertAdjacentElement('afterend', banner);
-      return;
+  /**
+   * Find the element that acts as the anchor for the "Code" dropdown button.
+   * The "Code" button is a <details> or <summary> in the PR header actions row.
+   * We insert our button just before that element (or its closest group wrapper).
+   */
+  function findCodeButtonAnchor() {
+    // The "Code" button is a <details> element whose <summary> contains "Code"
+    const details = document.querySelectorAll('details');
+    for (const d of details) {
+      const summary = d.querySelector('summary');
+      if (summary && summary.textContent.trim().toLowerCase().startsWith('code')) {
+        return d;
+      }
     }
 
-    // 2. Before the PR tab navigation (Conversation / Commits / Checks / Files)
-    const tabnav = document.querySelector('.tabnav');
-    if (tabnav) {
-      tabnav.parentNode.insertBefore(banner, tabnav);
-      return;
+    // Fallback: find a <summary> or <button> with text "Code"
+    for (const el of document.querySelectorAll('summary, button, a')) {
+      if (el.textContent.trim().toLowerCase() === 'code') {
+        // Return the closest wrapping group or the element itself
+        return el.closest('details') || el;
+      }
     }
 
-    // 3. Top of the main pjax/turbo container
-    const main =
-      document.querySelector('#js-repo-pjax-container') ||
-      document.querySelector('.repository-content') ||
-      document.querySelector('main');
-    if (main) {
-      main.insertBefore(banner, main.firstChild);
-      return;
-    }
-
-    // 4. Last resort
-    document.body.insertBefore(banner, document.body.firstChild);
+    return null;
   }
 
-  function injectBanner() {
+  function injectButton() {
     if (!isPullRequestPage()) {
-      removeBanner();
+      removeButton();
       return;
     }
 
     const originalBtn = findConvertToDraftButton();
-
     if (!originalBtn) {
-      // PR is already a draft, merged, or closed — remove any leftover banner
-      removeBanner();
+      removeButton();
       return;
     }
 
-    // Don't re-inject if the banner is already present
-    if (document.getElementById(BANNER_ID)) return;
+    if (document.getElementById(BTN_ID)) return;
 
-    insertBanner(createBanner());
+    const draftBtn = createDraftButton();
+
+    // 1. Insert right before the "Code" button in the same row
+    const codeAnchor = findCodeButtonAnchor();
+    if (codeAnchor) {
+      codeAnchor.parentNode.insertBefore(draftBtn, codeAnchor);
+      return;
+    }
+
+    // 2. Append into .gh-header-actions (the right-side action buttons in the PR header)
+    const headerActions = document.querySelector('.gh-header-actions');
+    if (headerActions) {
+      headerActions.appendChild(draftBtn);
+      return;
+    }
+
+    // 3. Prepend into .gh-header (whole PR header block)
+    const ghHeader = document.querySelector('.gh-header');
+    if (ghHeader) {
+      ghHeader.insertBefore(draftBtn, ghHeader.firstChild);
+      return;
+    }
   }
 
   function scheduleInject() {
     clearTimeout(injectTimeout);
-    injectTimeout = setTimeout(injectBanner, 300);
+    injectTimeout = setTimeout(injectButton, 300);
   }
 
   // ── Observers & event listeners ───────────────────────────────────────────
 
-  // Initial run
   scheduleInject();
 
-  // Watch for dynamic DOM changes (GitHub loads the merge box asynchronously)
   const domObserver = new MutationObserver((mutations) => {
-    let relevant = false;
     for (const m of mutations) {
       if (m.addedNodes.length || m.removedNodes.length) {
-        relevant = true;
-        break;
+        scheduleInject();
+        return;
       }
     }
-    if (relevant) scheduleInject();
   });
   domObserver.observe(document.body, { childList: true, subtree: true });
 
-  // GitHub Turbo / pjax navigation events
   for (const evt of ['turbo:load', 'turbo:render', 'pjax:end']) {
     document.addEventListener(evt, () => {
-      removeBanner();
+      removeButton();
       scheduleInject();
     });
   }
 
-  // Fallback: poll for URL changes (covers any navigation mechanism not caught above)
   let lastPath = window.location.pathname;
   setInterval(() => {
     if (window.location.pathname !== lastPath) {
       lastPath = window.location.pathname;
-      removeBanner();
+      removeButton();
       scheduleInject();
     }
   }, 1000);
