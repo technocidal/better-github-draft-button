@@ -43,6 +43,19 @@
     return null;
   }
 
+  function injectStyles() {
+    if (document.getElementById('better-draft-style')) return;
+    const style = document.createElement('style');
+    style.id = 'better-draft-style';
+    style.textContent = `
+      [data-better-draft-enhanced="btn"],
+      [data-better-draft-enhanced="btn"] * {
+        color: #ffffff !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   function revert() {
     for (const el of document.querySelectorAll('[' + ATTR + ']')) {
       el.removeAttribute(ATTR);
@@ -64,6 +77,7 @@
       return;
     }
 
+    injectStyles();
     const { btn, container } = found;
 
     // Already enhanced
