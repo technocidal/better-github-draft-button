@@ -18,40 +18,26 @@
    * sticky header).
    */
   function findSidebarDraftLink() {
-    // Collect every "Still in progress? … Convert to draft" occurrence on the page.
-    const candidates = [];
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
-    let node;
-    while ((node = walker.nextNode())) {
-      if (!node.textContent.toLowerCase().includes('still in progress')) continue;
+    // The sidebar "Convert to draft" is a plain <a> link.
+    // The merge/checks area version is a <button> or <input type="submit"> inside a <form>.
+    // Search for the <a> variant first — that's always the sidebar one.
+    for (const el of document.querySelectorAll('a')) {
+      if (el.textContent.trim().toLowerCase() !== 'convert to draft') continue;
 
-      const tightContainer = node.parentElement;
-      if (!tightContainer) continue;
-
-      // Search up a few levels for the link, always keeping tightContainer for styling.
-      let search = tightContainer;
-      for (let i = 0; i < 3 && search && search !== document.body; i++) {
-        const link = search.querySelector('a, button');
-        if (link && link.textContent.trim().toLowerCase() === 'convert to draft') {
-          candidates.push({ btn: link, container: tightContainer });
-          break;
+      // Walk up to find the tight container that also holds "Still in progress?"
+      let container = el.parentElement;
+      for (let i = 0; i < 4 && container && container !== document.body; i++) {
+        if (container.textContent.toLowerCase().includes('still in progress')) {
+          return { btn: el, container };
         }
-        search = search.parentElement;
+        container = container.parentElement;
       }
+
+      // Found the link but no "Still in progress?" nearby — still use it
+      return { btn: el, container: el.parentElement };
     }
 
-    if (candidates.length === 0) return null;
-    if (candidates.length === 1) return candidates[0];
-
-    // When there are multiple (sidebar + merge/checks area), the sidebar is the
-    // right-hand column — its left edge is past the horizontal midpoint of the page.
-    const mid = window.innerWidth / 2;
-    const sidebar = candidates.find(({ container }) => {
-      const rect = container.getBoundingClientRect();
-      return rect.width > 0 && rect.left > mid;
-    });
-
-    return sidebar || candidates[0];
+    return null;
   }
 
   function revert() {
