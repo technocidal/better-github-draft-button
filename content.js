@@ -182,32 +182,25 @@
   // ── Injection logic ───────────────────────────────────────────────────────
 
   function insertBanner(banner) {
-    // 1. After the PR title/header block
-    const ghHeader = document.querySelector('.gh-header');
-    if (ghHeader) {
-      ghHeader.insertAdjacentElement('afterend', banner);
-      return;
-    }
+    // Use fixed positioning so the banner is always visible at the top of the
+    // viewport regardless of scroll position or where in the DOM it lands.
+    // Offset below GitHub's own sticky navigation header.
+    const githubNav = document.querySelector(
+      '.AppHeader, [data-component="AppHeader"], .Header, header[role="banner"]'
+    );
+    const topOffset = githubNav
+      ? Math.round(githubNav.getBoundingClientRect().bottom)
+      : 0;
 
-    // 2. Before the PR tab navigation (Conversation / Commits / Checks / Files)
-    const tabnav = document.querySelector('.tabnav');
-    if (tabnav) {
-      tabnav.parentNode.insertBefore(banner, tabnav);
-      return;
-    }
+    Object.assign(banner.style, {
+      position: 'fixed',
+      top: topOffset + 'px',
+      left: '0',
+      right: '0',
+      zIndex: '9999',
+    });
 
-    // 3. Top of the main pjax/turbo container
-    const main =
-      document.querySelector('#js-repo-pjax-container') ||
-      document.querySelector('.repository-content') ||
-      document.querySelector('main');
-    if (main) {
-      main.insertBefore(banner, main.firstChild);
-      return;
-    }
-
-    // 4. Last resort
-    document.body.insertBefore(banner, document.body.firstChild);
+    document.body.appendChild(banner);
   }
 
   function injectBanner() {
