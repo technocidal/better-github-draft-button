@@ -18,22 +18,25 @@
    * sticky header).
    */
   function findSidebarDraftLink() {
-    // The sidebar "Convert to draft" is a plain <a> link.
-    // The merge/checks area version is a <button> or <input type="submit"> inside a <form>.
-    // Search for the <a> variant first — that's always the sidebar one.
-    for (const el of document.querySelectorAll('a')) {
+    // The sidebar "Convert to draft" is a <summary> element inside a <details> inside
+    // #partial-discussion-sidebar. The merge-box version is a <button>. Searching for
+    // <summary> elements scoped to the sidebar reliably avoids the merge-box version.
+    const sidebar = document.getElementById('partial-discussion-sidebar');
+    const scope = sidebar || document;
+
+    for (const el of scope.querySelectorAll('summary')) {
       if (el.textContent.trim().toLowerCase() !== 'convert to draft') continue;
 
-      // Walk up to find the tight container that also holds "Still in progress?"
+      // Walk up to find the container that also holds "Still in progress?"
       let container = el.parentElement;
-      for (let i = 0; i < 4 && container && container !== document.body; i++) {
+      for (let i = 0; i < 5 && container && container !== document.body; i++) {
         if (container.textContent.toLowerCase().includes('still in progress')) {
           return { btn: el, container };
         }
         container = container.parentElement;
       }
 
-      // Found the link but no "Still in progress?" nearby — still use it
+      // Found the summary but no "Still in progress?" nearby — still use it
       return { btn: el, container: el.parentElement };
     }
 
