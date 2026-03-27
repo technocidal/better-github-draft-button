@@ -7,7 +7,7 @@
   const BTN_STYLES = {
     display: 'inline-flex',
     alignItems: 'center',
-    backgroundColor: '#9a6700',
+    backgroundColor: '#0969da',
     color: '#ffffff',
     border: '1px solid rgba(0,0,0,0.15)',
     borderRadius: '6px',
@@ -82,7 +82,7 @@
         text-decoration: none !important;
       }
       [data-better-draft-enhanced="btn"]:hover {
-        background-color: #7d5300 !important;
+        background-color: #0757ba !important;
       }
       [data-better-draft-enhanced="merge-btn"],
       [data-better-draft-enhanced="merge-btn"] *,
@@ -92,7 +92,7 @@
         text-decoration: none !important;
       }
       [data-better-draft-enhanced="merge-btn"]:hover {
-        background-color: #7d5300 !important;
+        background-color: #0757ba !important;
       }
     `;
     document.head.appendChild(style);
@@ -124,17 +124,6 @@
         btn.setAttribute(ATTR, 'btn');
         Object.assign(btn.style, BTN_STYLES);
 
-        container.setAttribute(ATTR, 'container');
-        Object.assign(container.style, {
-          backgroundColor: '#fff8c5',
-          border: '1px solid rgba(212,167,44,0.5)',
-          borderRadius: '6px',
-          padding: '6px 10px',
-          marginTop: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        });
       }
     }
 
