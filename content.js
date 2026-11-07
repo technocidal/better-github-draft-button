@@ -2,6 +2,9 @@
   'use strict';
 
   const ATTR = 'data-better-draft-enhanced';
+  // Snapshot of each element's inline style before we touch it, so revert()
+  // can restore GitHub's own styling instead of wiping it.
+  const originalStyles = new WeakMap();
   let enhanceTimeout = null;
 
   const BTN_STYLES_BASE = {
@@ -34,9 +37,9 @@
   // Sidebar: <summary> inside #partial-discussion-sidebar
   function findSidebarDraftLink() {
     const sidebar = document.getElementById('partial-discussion-sidebar');
-    const scope = sidebar || document;
+    if (!sidebar) return null;
 
-    for (const el of scope.querySelectorAll('summary')) {
+    for (const el of sidebar.querySelectorAll('summary')) {
       if (el.textContent.trim().toLowerCase() !== 'convert to draft') continue;
 
       let container = el.parentElement;
@@ -46,7 +49,8 @@
         }
         container = container.parentElement;
       }
-      return { btn: el, container: el.parentElement };
+      // Anchor text not found — don't guess at a container.
+      return { btn: el, container: null };
     }
     return null;
   }
@@ -65,9 +69,16 @@
         }
         container = container.parentElement;
       }
-      return { btn: el, container: el.parentElement };
+      // Anchor text not found — don't guess at a container.
+      return { btn: el, container: null };
     }
     return null;
+  }
+
+  function rememberStyle(el) {
+    if (!originalStyles.has(el)) {
+      originalStyles.set(el, el.getAttribute('style') || '');
+    }
   }
 
   function injectStyles() {
@@ -103,8 +114,15 @@
 
   function revert() {
     for (const el of document.querySelectorAll('[' + ATTR + ']')) {
+      const original = originalStyles.get(el);
+      if (original === undefined) {
+        el.removeAttribute('style');
+      } else if (original === '') {
+        el.removeAttribute('style');
+      } else {
+        el.setAttribute('style', original);
+      }
       el.removeAttribute(ATTR);
-      el.removeAttribute('style');
     }
   }
 
@@ -118,26 +136,29 @@
 
     injectStyles();
 
-    // 1. Sidebar button + yellow container
+    // 1. Sidebar button + its container
     const found = findSidebarDraftLink();
     if (found) {
       const { btn, container } = found;
 
       if (!btn.getAttribute(ATTR)) {
+        rememberStyle(btn);
         btn.setAttribute(ATTR, 'btn');
         Object.assign(btn.style, BTN_STYLES_SUMMARY);
 
-        container.setAttribute(ATTR, 'container');
-        Object.assign(container.style, {
-          border: '1px solid rgba(0,0,0,0.1)',
-          borderRadius: '6px',
-          padding: '6px 10px',
-          marginTop: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        });
-
+        if (container) {
+          rememberStyle(container);
+          container.setAttribute(ATTR, 'container');
+          Object.assign(container.style, {
+            border: '1px solid rgba(0,0,0,0.1)',
+            borderRadius: '6px',
+            padding: '6px 10px',
+            marginTop: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          });
+        }
       }
     }
 
@@ -146,13 +167,20 @@
     if (mergeFound) {
       const { btn: mergeBtn, container: mergeRow } = mergeFound;
       if (!mergeBtn.getAttribute(ATTR)) {
+        rememberStyle(mergeBtn);
         mergeBtn.setAttribute(ATTR, 'merge-btn');
         Object.assign(mergeBtn.style, BTN_STYLES_BUTTON);
 
+        if (!mergeRow) return;
+
         // Find the bordered merge box (previous sibling of the row or an ancestor's
         // previous sibling) and add paddingRight so our row's right edge matches it.
+        rememberStyle(mergeRow);
         mergeRow.setAttribute(ATTR, 'merge-row');
         requestAnimationFrame(() => {
+          // A navigation/revert may have happened before this frame ran.
+          if (mergeRow.getAttribute(ATTR) !== 'merge-row') return;
+
           // Walk up from the row to find a sibling that looks like the merge box
           let node = mergeRow;
           let mergeBox = null;
