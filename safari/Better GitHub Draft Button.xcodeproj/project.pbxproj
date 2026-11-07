@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3BB73C4A309FE9EB005891EC /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 3BB73C49309FE9EB005891EC /* AppIcon.icon */; };
+		3BB73C4B309FE9EB005891EC /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 3BB73C49309FE9EB005891EC /* AppIcon.icon */; };
 		3BDCAF1E2F794BBF00C43B84 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BDCAF1D2F794BBF00C43B84 /* AppDelegate.swift */; };
 		3BDCAF202F794BBF00C43B84 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BDCAF1F2F794BBF00C43B84 /* SceneDelegate.swift */; };
 		3BDCAF232F794BBF00C43B84 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3BDCAF212F794BBF00C43B84 /* LaunchScreen.storyboard */; };
@@ -82,6 +84,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		3BB73C49309FE9EB005891EC /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		3BDCAF0E2F794BBF00C43B84 /* Base */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = Base; path = Base.lproj/Main.html; sourceTree = "<group>"; };
 		3BDCAF0F2F794BBF00C43B84 /* Icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Icon.png; sourceTree = "<group>"; };
 		3BDCAF102F794BBF00C43B84 /* Style.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = Style.css; sourceTree = "<group>"; };
@@ -159,6 +162,7 @@
 			children = (
 				3BDCAF122F794BBF00C43B84 /* ViewController.swift */,
 				3BDCAF132F794BBF00C43B84 /* Assets.xcassets */,
+				3BB73C49309FE9EB005891EC /* AppIcon.icon */,
 				3BDCAF0C2F794BBF00C43B84 /* Resources */,
 			);
 			path = "Shared (App)";
@@ -384,6 +388,7 @@
 				3BDCAF482F794BBF00C43B84 /* Main.html in Resources */,
 				3BDCAF4E2F794BBF00C43B84 /* Script.js in Resources */,
 				3BDCAF522F794BBF00C43B84 /* Assets.xcassets in Resources */,
+				3BB73C4A309FE9EB005891EC /* AppIcon.icon in Resources */,
 				3BDCAF262F794BBF00C43B84 /* Main.storyboard in Resources */,
 				3BDCAF4C2F794BBF00C43B84 /* Style.css in Resources */,
 			);
@@ -396,6 +401,7 @@
 				3BDCAF4B2F794BBF00C43B84 /* Icon.png in Resources */,
 				3BDCAF4D2F794BBF00C43B84 /* Style.css in Resources */,
 				3BDCAF322F794BBF00C43B84 /* Main.storyboard in Resources */,
+				3BB73C4B309FE9EB005891EC /* AppIcon.icon in Resources */,
 				3BDCAF4F2F794BBF00C43B84 /* Script.js in Resources */,
 				3BDCAF532F794BBF00C43B84 /* Assets.xcassets in Resources */,
 				3BDCAF492F794BBF00C43B84 /* Main.html in Resources */,
@@ -705,6 +711,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -750,6 +757,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
