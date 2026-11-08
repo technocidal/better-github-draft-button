@@ -6,11 +6,18 @@
   // can restore GitHub's own styling instead of wiping it.
   const originalStyles = new WeakMap();
   let enhanceTimeout = null;
+  // Original margin-right of each enhanced merge row, so repeat alignments can
+  // reset before measuring instead of compounding.
+  const originalMarginRight = new WeakMap();
+  let alignResizeTimeout = null;
+  // Text nodes we emptied to remove the label, with their original data, so
+  // revert() can put the text back: [textNode, originalData][]
+  const emptiedTextNodes = [];
 
   const BTN_STYLES_BASE = {
     backgroundColor: '#0969da',
     color: '#ffffff',
-    border: '1px solid rgba(0,0,0,0.15)',
+    border: 'none',
     borderRadius: '6px',
     padding: '4px 12px',
     fontSize: '13px',
@@ -112,7 +119,38 @@
     document.head.appendChild(style);
   }
 
+  // Remove the "Still in progress?" label inside a container, keeping the
+  // button. The label's element is hidden with display:none (tracked via ATTR
+  // so revert() restores it); a bare text node is emptied and restored in
+  // revert(). Hiding rather than removing keeps the label's text present in
+  // textContent, which the finders use as their anchor on later passes.
+  function removeStillInProgressLabel(container, btn) {
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+    const matches = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      if (node.data.toLowerCase().includes('still in progress')) matches.push(node);
+    }
+    for (const textNode of matches) {
+      const el = textNode.parentElement;
+      if (el && el !== container && !el.contains(btn)) {
+        if (!el.getAttribute(ATTR)) {
+          rememberStyle(el);
+          el.setAttribute(ATTR, 'label');
+        }
+        el.style.display = 'none';
+      } else if (!emptiedTextNodes.some(([t]) => t === textNode)) {
+        emptiedTextNodes.push([textNode, textNode.data]);
+        textNode.data = '';
+      }
+    }
+  }
+
   function revert() {
+    for (const [textNode, data] of emptiedTextNodes) {
+      textNode.data = data;
+    }
+    emptiedTextNodes.length = 0;
     for (const el of document.querySelectorAll('[' + ATTR + ']')) {
       const original = originalStyles.get(el);
       if (original === undefined) {
@@ -123,6 +161,41 @@
         el.setAttribute('style', original);
       }
       el.removeAttribute(ATTR);
+    }
+  }
+
+  // Shift the row so its trailing edge matches the merge box's trailing edge.
+  // margin-right moves a block row's border-box edge in BOTH directions
+  // (padding-right would not), so this works whether the row sits short of
+  // the box or sticks out past it.
+  function alignMergeRow(row) {
+    // A navigation/revert may have happened before this ran.
+    if (row.getAttribute(ATTR) !== 'merge-row') return;
+
+    // Walk up from the row to find a wide preceding sibling — the merge box.
+    let node = row;
+    let mergeBox = null;
+    while (node && node !== document.body && !mergeBox) {
+      const prev = node.previousElementSibling;
+      if (prev && prev.getBoundingClientRect().width > 100) mergeBox = prev;
+      node = node.parentElement;
+    }
+    if (!mergeBox) return;
+
+    if (!originalMarginRight.has(row)) {
+      originalMarginRight.set(row, getComputedStyle(row).marginRight);
+    }
+    const base = originalMarginRight.get(row);
+    row.style.marginRight = base; // reset before measuring
+    const diff = row.getBoundingClientRect().right - mergeBox.getBoundingClientRect().right;
+    if (diff) {
+      row.style.marginRight = (parseFloat(base) || 0) + diff + 'px';
+    }
+  }
+
+  function alignAllMergeRows() {
+    for (const row of document.querySelectorAll('[' + ATTR + '="merge-row"]')) {
+      alignMergeRow(row);
     }
   }
 
@@ -150,14 +223,15 @@
           rememberStyle(container);
           container.setAttribute(ATTR, 'container');
           Object.assign(container.style, {
-            border: '1px solid rgba(0,0,0,0.1)',
-            borderRadius: '6px',
-            padding: '6px 10px',
+            border: 'none',
+            padding: '0',
             marginTop: '8px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-end',
+            gap: '8px',
           });
+          removeStillInProgressLabel(container, btn);
         }
       }
     }
@@ -173,33 +247,11 @@
 
         if (!mergeRow) return;
 
-        // Find the bordered merge box (previous sibling of the row or an ancestor's
-        // previous sibling) and add paddingRight so our row's right edge matches it.
         rememberStyle(mergeRow);
         mergeRow.setAttribute(ATTR, 'merge-row');
-        requestAnimationFrame(() => {
-          // A navigation/revert may have happened before this frame ran.
-          if (mergeRow.getAttribute(ATTR) !== 'merge-row') return;
-
-          // Walk up from the row to find a sibling that looks like the merge box
-          let node = mergeRow;
-          let mergeBox = null;
-          while (node && node !== document.body && !mergeBox) {
-            const prev = node.previousElementSibling;
-            if (prev && prev.getBoundingClientRect().width > 100) {
-              mergeBox = prev;
-            }
-            node = node.parentElement;
-          }
-          if (mergeBox) {
-            const boxRight = mergeBox.getBoundingClientRect().right;
-            const rowRight = mergeRow.getBoundingClientRect().right;
-            const diff = rowRight - boxRight;
-            if (diff > 0) {
-              mergeRow.style.paddingRight = diff + 'px';
-            }
-          }
-        });
+        removeStillInProgressLabel(mergeRow, mergeBtn);
+        // Two frames so fonts/images have settled before measuring.
+        requestAnimationFrame(() => requestAnimationFrame(() => alignMergeRow(mergeRow)));
       }
     }
   }
@@ -212,6 +264,11 @@
   // ── Observers & event listeners ───────────────────────────────────────────
 
   scheduleEnhance();
+
+  window.addEventListener('resize', () => {
+    clearTimeout(alignResizeTimeout);
+    alignResizeTimeout = setTimeout(alignAllMergeRows, 150);
+  });
 
   const domObserver = new MutationObserver((mutations) => {
     for (const m of mutations) {

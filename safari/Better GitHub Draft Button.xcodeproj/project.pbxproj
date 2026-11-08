@@ -642,8 +642,10 @@
 		3BDCAF592F794BBF00C43B84 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YE74577HJH;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Better GitHub Draft Button Extension";
@@ -661,6 +663,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.technocidal.Better-GitHub-Draft-Button.Extension";
 				PRODUCT_NAME = "Better GitHub Draft Button Extension";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -675,8 +678,10 @@
 		3BDCAF5A2F794BBF00C43B84 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YE74577HJH;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Better GitHub Draft Button Extension";
@@ -694,6 +699,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.technocidal.Better-GitHub-Draft-Button.Extension";
 				PRODUCT_NAME = "Better GitHub Draft Button Extension";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -802,10 +808,11 @@
 		3BDCAF602F794BBF00C43B84 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = YE74577HJH;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
@@ -826,6 +833,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.technocidal.Better-GitHub-Draft-Button.Extension";
 				PRODUCT_NAME = "Better GitHub Draft Button Extension";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -839,10 +847,11 @@
 		3BDCAF612F794BBF00C43B84 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = YE74577HJH;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
@@ -863,6 +872,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.technocidal.Better-GitHub-Draft-Button.Extension";
 				PRODUCT_NAME = "Better GitHub Draft Button Extension";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
