@@ -198,9 +198,10 @@
       icon.removeAttribute('uid');
       icon.setAttribute('fill', 'currentColor');
     } else {
-      const tpl = document.createElement('template');
-      tpl.innerHTML = DRAFT_ICON_SVG;
-      icon = tpl.content.firstChild;
+      // DOMParser instead of innerHTML — addons-linter flags innerHTML with
+      // dynamic values.
+      const doc = new DOMParser().parseFromString(DRAFT_ICON_SVG, 'image/svg+xml');
+      icon = document.importNode(doc.documentElement, true);
     }
     icon.setAttribute('aria-hidden', 'true');
     // Icon-to-text spacing via margin (not flex gap) so it also works in
