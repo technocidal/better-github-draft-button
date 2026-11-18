@@ -55,8 +55,12 @@ async function accessToken() {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: jwt }),
   });
-  if (!res.ok) throw new Error(`Token request failed: ${res.status} ${await res.text()}`);
-  return (await res.json()).access_token;
+  const body = await res.text();
+  if (!res.ok || !body.trimStart().startsWith('{')) {
+    // Google error pages are safe to quote; never log the JWT itself.
+    throw new Error(`Token request failed: HTTP ${res.status}, content-type=${res.headers.get('content-type')}, body starts: ${body.slice(0, 200)}`);
+  }
+  return JSON.parse(body).access_token;
 }
 
 const token = await accessToken();
