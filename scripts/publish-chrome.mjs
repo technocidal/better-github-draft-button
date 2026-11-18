@@ -80,39 +80,45 @@ const token = await accessToken();
 console.log('Got access token.');
 const base = `https://chromewebstore.googleapis.com/v2/publishers/${CWS_PUBLISHER_ID}/items/${CWS_ITEM_ID}`;
 
-// Idempotency: skip if this version is already live or pending on the store.
+// Idempotency: skip entirely if this version is already live; if it's only
+// submitted (uploaded but not published), skip the upload but still publish.
 // (v2 has no items.get — fetchStatus is the readable endpoint.)
 const status0 = await apiJson(`${base}:fetchStatus`, token);
 if (!status0.ok) throw new Error(`fetchStatus failed: HTTP ${status0.status} ${JSON.stringify(status0.data).slice(0, 300)}`);
-const chans = status0.data?.publishedItemRevisionStatus?.distributionChannels ?? [];
-const pending = status0.data?.submittedItemRevisionStatus?.distributionChannels ?? [];
-const live = [...chans, ...pending].map((c) => c.crxVersion);
-if (live.includes(VERSION)) {
-  console.log(`Version ${VERSION} already present on the store — nothing to do.`);
+const published = (status0.data?.publishedItemRevisionStatus?.distributionChannels ?? []).map((c) => c.crxVersion);
+const submitted = (status0.data?.submittedItemRevisionStatus?.distributionChannels ?? []).map((c) => c.crxVersion);
+const pubState = status0.data?.publishedItemRevisionStatus?.state;
+if (published.includes(VERSION) && pubState === 'PUBLISHED') {
+  console.log(`Version ${VERSION} already live on the store — nothing to do.`);
   process.exit(0);
 }
+const needsUpload = !submitted.includes(VERSION);
 
-// Upload the package.
-const upload = await apiJson(
-  `https://chromewebstore.googleapis.com/upload/v2/publishers/${CWS_PUBLISHER_ID}/items/${CWS_ITEM_ID}:upload`,
-  token,
-  { method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: readFileSync(EXTENSION_ZIP) },
-);
-if (!upload.ok) throw new Error(`Upload failed: HTTP ${upload.status} ${JSON.stringify(upload.data).slice(0, 300)}`);
+// Upload the package (unless this version was already uploaded).
+if (needsUpload) {
+  const upload = await apiJson(
+    `https://chromewebstore.googleapis.com/upload/v2/publishers/${CWS_PUBLISHER_ID}/items/${CWS_ITEM_ID}:upload`,
+    token,
+    { method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: readFileSync(EXTENSION_ZIP) },
+  );
+  if (!upload.ok) throw new Error(`Upload failed: HTTP ${upload.status} ${JSON.stringify(upload.data).slice(0, 300)}`);
 
-// The upload response already carries the state; poll fetchStatus only
-// while it's still IN_PROGRESS.
-let state = upload.data.uploadState;
-console.log(`Uploaded (crxVersion=${upload.data.crxVersion ?? 'n/a'}, state=${state ?? 'n/a'}), waiting for processing...`);
-for (let i = 0; i < 60 && state === 'IN_PROGRESS'; i++) {
-  await new Promise((r) => setTimeout(r, 5000));
-  const status = await apiJson(`${base}:fetchStatus`, token);
-  state = status.data.lastAsyncUploadState ?? state;
+  // The upload response already carries the state; poll fetchStatus only
+  // while it's still IN_PROGRESS.
+  let state = upload.data.uploadState;
+  console.log(`Uploaded (crxVersion=${upload.data.crxVersion ?? 'n/a'}, state=${state ?? 'n/a'}), waiting for processing...`);
+  for (let i = 0; i < 60 && state === 'IN_PROGRESS'; i++) {
+    await new Promise((r) => setTimeout(r, 5000));
+    const status = await apiJson(`${base}:fetchStatus`, token);
+    state = status.data.lastAsyncUploadState ?? state;
+  }
+  if (state === 'FAILED' || state === 'NOT_FOUND') {
+    throw new Error(`Store rejected the package: ${JSON.stringify(upload.data).slice(0, 300)}`);
+  }
+  if (state !== 'SUCCEEDED') throw new Error(`Timed out waiting for upload state, last: ${state}`);
+} else {
+  console.log(`Version ${VERSION} already uploaded — skipping upload, publishing directly.`);
 }
-if (state === 'FAILED' || state === 'NOT_FOUND') {
-  throw new Error(`Store rejected the package: ${JSON.stringify(upload.data).slice(0, 300)}`);
-}
-if (state !== 'SUCCEEDED') throw new Error(`Timed out waiting for upload state, last: ${state}`);
 
 // Publish (goes to review unless the account is trusted).
 const publish = await apiJson(`${base}:publish`, token, {
