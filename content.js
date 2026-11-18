@@ -412,6 +412,14 @@
           Object.assign(li.style, { listStyle: 'none', padding: '0', margin: '0 0 4px 0' });
         }
       }
+
+      // Align the icon with the unstyled "Close pull request" button below:
+      // copy its computed left padding so both icons start at the same x.
+      const closeBtn = Array.from(railList.querySelectorAll('button'))
+        .find(b => b !== railBtn && b.textContent.trim().toLowerCase().includes('close pull request'));
+      if (closeBtn) {
+        railBtn.style.paddingLeft = getComputedStyle(closeBtn).paddingLeft;
+      }
     }
 
     // 4. New dashboard: button inside the "Merge status" panel/dialog
