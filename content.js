@@ -1,6 +1,8 @@
 (function () {
   'use strict';
 
+  console.log('[better-draft] content.js loaded on', window.location.pathname);
+
   const ATTR = 'data-better-draft-enhanced';
   // Snapshot of each element's inline style before we touch it, so revert()
   // can restore GitHub's own styling instead of wiping it.
@@ -39,13 +41,16 @@
   const BTN_STYLES_SUMMARY = { ...BTN_STYLES_BASE, display: 'inline-block' };
   const BTN_STYLES_BUTTON  = { ...BTN_STYLES_BASE, display: 'inline-flex', alignItems: 'center' };
   // New PR dashboard: trailing-rail action button (inside "Pull request
-  // actions" list). Full-width block, icon left-aligned.
+  // actions" list). Full-width block, icon left-aligned with a gap so it
+  // lines up with the unstyled "Close pull request" button below it.
   const BTN_STYLES_RAIL    = { ...BTN_STYLES_BASE, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', padding: '6px 12px' };
-  // New PR dashboard: button inside the "Merge status" panel/dialog.
+  // New PR dashboard: button inside the "Merge status" modal dialog. Inline
+  // block, slightly larger padding for the dialog context.
   const BTN_STYLES_DIALOG  = { ...BTN_STYLES_BASE, display: 'inline-flex', alignItems: 'center', padding: '6px 16px' };
 
-  // Fallback draft icon (octicon git-pull-request-draft-16) for buttons that
-  // have no SVG of their own. Used when the rail button's icon can't be cloned.
+  // Fallback draft icon (octicon git-pull-request-draft-16) for the merge
+  // status dialog button, which has no SVG of its own. Used when the rail
+  // button's icon can't be cloned (e.g. rail not yet rendered).
   const DRAFT_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3.25 1A2.25 2.25 0 0 1 4 5.372v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.251 2.251 0 0 1 3.25 1Zm9.5 14a2.25 2.25 0 1 1 0-4.5 2.25 2.25 0 0 1 0 4.5ZM2.5 3.25a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0ZM3.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm9.5 0a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM14 7.5a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm0-4.25a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Z"/></svg>';
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -59,12 +64,16 @@
   }
 
   // New dashboard: is this button inside the "Merge status" panel/dialog?
+  // Match any dialog whose accessible name (aria-label / aria-labelledby) or
+  // content mentions "merge status" — GitHub's Primer React panel may use
+  // either attribute, and sometimes omits aria-modal.
   function isInMergeStatusDialog(el) {
     const dialog = el.closest('[role="dialog"]');
     if (!dialog) return false;
     const label = (dialog.getAttribute('aria-label') || '') + ' ' +
       (dialog.getAttribute('aria-labelledby') || '');
     if (label.toLowerCase().includes('merge status')) return true;
+    // aria-labelledby points at an id — resolve it.
     const labelledby = dialog.getAttribute('aria-labelledby');
     if (labelledby) {
       const ref = document.getElementById(labelledby);
@@ -76,10 +85,11 @@
   // New dashboard: is this button inside the trailing-rail "Pull request
   // actions" list?
   function isInRailActions(el) {
-    return !!el.closest('ul[aria-label="Pull request actions"]');
+    const list = el.closest('ul[aria-label="Pull request actions"]');
+    return !!list;
   }
 
-  // Sidebar: <summary> inside #partial-discussion-sidebar
+  // Sidebar (old UI): <summary> inside #partial-discussion-sidebar
   function findSidebarDraftLink() {
     const sidebar = document.getElementById('partial-discussion-sidebar');
     if (!sidebar) return null;
@@ -117,8 +127,9 @@
         }
         container = container.parentElement;
       }
-      // Anchor not found — this isn't the old merge box (new dashboard
-      // buttons have no "Still in progress?" label). Don't style it here.
+      // Anchor text not found — this isn't the old merge box (the new
+      // dashboard buttons have no "Still in progress?" label). Don't style
+      // it as merge-btn.
       return null;
     }
     return null;
@@ -137,7 +148,8 @@
     return null;
   }
 
-  // New dashboard: button inside the "Merge status" panel/dialog.
+  // New dashboard: button inside the "Merge status" panel/dialog. Match by
+  // dialog role (any aria naming) or by GitHub's Primer action attribute.
   function findMergeStatusDialogBtn() {
     for (const dialog of document.querySelectorAll('[role="dialog"]')) {
       const label = (dialog.getAttribute('aria-label') || '') + ' ' +
@@ -152,6 +164,8 @@
       }
     }
     // Fallback: Primer React action button outside a detectable dialog.
+    // Exclude the old merge-box button ("Still in progress?" anchor) — it is
+    // styled by findMergeBoxDraftBtn; it still gets the icon via that path.
     for (const el of document.querySelectorAll('button[data-dd-action-name="pull_requests.lifecycle.open_convert_to_draft"]')) {
       if (isInRailActions(el)) continue;
       if (hasStillInProgressAncestor(el)) continue;
@@ -169,20 +183,6 @@
       node = node.parentElement;
     }
     return false;
-  }
-
-  function rememberStyle(el) {
-    if (!originalStyles.has(el)) {
-      originalStyles.set(el, el.getAttribute('style') || '');
-    }
-  }
-
-  // Cached computed padding-left of the rail's "Close pull request" button,
-  // keyed by the rail list, so steady-state passes don't force style recalc.
-  const railPaddingCache = new WeakMap();
-
-  function setStyleIfChanged(el, prop, value) {
-    if (el.style[prop] !== value) el.style[prop] = value;
   }
 
   // Insert the draft icon into a button that has no SVG, cloning the rail
@@ -205,11 +205,28 @@
     icon.setAttribute('aria-hidden', 'true');
     // Icon-to-text spacing via margin (not flex gap) so it also works in
     // inline-block contexts like <summary>, where `gap` has no effect.
-    // Fine-tuned pixel offset centers the 16px icon against 20px line-height.
+    // Fine-tune the inline SVG's vertical position with a pixel offset:
+    // baseline (default) is too high, `middle` overshoots low. -3px centers
+    // a 16px icon against the button's 20px line-height.
     icon.style.marginInlineEnd = '8px';
     icon.style.marginInlineStart = '0px';
     icon.style.verticalAlign = '-3px';
     btn.insertBefore(icon, btn.firstChild);
+  }
+
+  function rememberStyle(el) {
+    if (!originalStyles.has(el)) {
+      originalStyles.set(el, el.getAttribute('style') || '');
+    }
+  }
+
+  // Cached computed padding-left of the rail's "Close pull request" button,
+  // keyed by the rail list, so we don't force style recalc on every pass.
+  // Cleared on resize.
+  const railPaddingCache = new WeakMap();
+
+  function setStyleIfChanged(el, prop, value) {
+    if (el.style[prop] !== value) el.style[prop] = value;
   }
 
   function injectStyles() {
@@ -242,7 +259,9 @@
       [data-better-draft-enhanced="rail-btn"],
       [data-better-draft-enhanced="rail-btn"] *,
       [data-better-draft-enhanced="rail-btn"]:hover,
-      [data-better-draft-enhanced="rail-btn"]:hover * {
+      [data-better-draft-enhanced="rail-btn"]:hover *,
+      [data-better-draft-enhanced="rail-btn"]:focus,
+      [data-better-draft-enhanced="rail-btn"]:focus * {
         color: #ffffff !important;
         text-decoration: none !important;
       }
@@ -252,7 +271,9 @@
       [data-better-draft-enhanced="dialog-btn"],
       [data-better-draft-enhanced="dialog-btn"] *,
       [data-better-draft-enhanced="dialog-btn"]:hover,
-      [data-better-draft-enhanced="dialog-btn"]:hover * {
+      [data-better-draft-enhanced="dialog-btn"]:hover *,
+      [data-better-draft-enhanced="dialog-btn"]:focus,
+      [data-better-draft-enhanced="dialog-btn"]:focus * {
         color: #ffffff !important;
         text-decoration: none !important;
       }
@@ -358,7 +379,7 @@
 
     injectStyles();
 
-    // 1. Sidebar button + its container
+    // 1. Sidebar button + its container (old UI)
     const found = findSidebarDraftLink();
     if (found) {
       const { btn, container } = found;
@@ -387,7 +408,7 @@
       ensureIcon(btn);
     }
 
-    // 2. Merge-box button — style in place and align right edge with merge box
+    // 2. Merge-box button (old UI) — style in place and align right edge with merge box
     const mergeFound = mergeBoxHandled ? null : findMergeBoxDraftBtn();
     if (mergeFound) {
       const { btn: mergeBtn, container: mergeRow } = mergeFound;
@@ -405,7 +426,7 @@
         // Two frames so fonts/images have settled before measuring.
         requestAnimationFrame(() => requestAnimationFrame(() => alignMergeRow(mergeRow)));
       }
-      // Keep the draft icon here too.
+      // Keep the draft icon here too (previously picked up accidentally).
       ensureIcon(mergeBtn);
     }
 
@@ -441,7 +462,7 @@
       if (cache.pad) setStyleIfChanged(railBtn, 'paddingLeft', cache.pad);
     }
 
-    // 4. New dashboard: button inside the "Merge status" panel/dialog
+    // 4. New dashboard: button inside the "Merge status" modal dialog
     const dialogFound = findMergeStatusDialogBtn();
     if (dialogFound) {
       const { btn: dialogBtn } = dialogFound;
@@ -450,9 +471,11 @@
         dialogBtn.setAttribute(ATTR, 'dialog-btn');
         Object.assign(dialogBtn.style, BTN_STYLES_DIALOG);
       }
-      // The dialog button has no icon — ensureIcon() is idempotent and runs
-      // on every pass because the rail button may not exist yet when the
-      // dialog first opens.
+
+      // The dialog button has no icon — clone the draft SVG from the rail
+      // button if present, otherwise fall back to the bundled octicon.
+      // ensureIcon() is idempotent and runs on every pass because the rail
+      // button may not exist yet when the dialog first opens.
       ensureIcon(dialogBtn);
     }
   }
@@ -473,8 +496,9 @@
 
   const domObserver = new MutationObserver((mutations) => {
     for (const m of mutations) {
-      // Ignore text-only churn (GitHub updates lots of text nodes on timers)
-      // — only element insertions/removals can reveal a new draft button.
+      // Ignore text-only / attribute-free churn (GitHub updates lots of
+      // text nodes on timers) — only element insertions/removals can reveal
+      // a new draft button.
       const hasElement = Array.from(m.addedNodes).some(n => n.nodeType === 1) ||
         Array.from(m.removedNodes).some(n => n.nodeType === 1);
       if (hasElement) {
@@ -492,10 +516,11 @@
     });
   }
 
-  let lastPath = window.location.pathname;
+  let lastPath = window.location.pathname + window.location.search;
   setInterval(() => {
-    if (window.location.pathname !== lastPath) {
-      lastPath = window.location.pathname;
+    const current = window.location.pathname + window.location.search;
+    if (current !== lastPath) {
+      lastPath = current;
       revert();
       scheduleEnhance();
     }
