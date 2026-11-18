@@ -85,7 +85,7 @@ const base = `https://chromewebstore.googleapis.com/v2/publishers/${CWS_PUBLISHE
 const status0 = await apiJson(`${base}:fetchStatus`, token);
 if (!status0.ok) throw new Error(`fetchStatus failed: HTTP ${status0.status} ${JSON.stringify(status0.data).slice(0, 300)}`);
 const chans = status0.data?.publishedItemRevisionStatus?.distributionChannels ?? [];
-const pending = status0.data?.pendingItemRevisionStatus?.distributionChannels ?? [];
+const pending = status0.data?.submittedItemRevisionStatus?.distributionChannels ?? [];
 const live = [...chans, ...pending].map((c) => c.crxVersion);
 if (live.includes(VERSION)) {
   console.log(`Version ${VERSION} already present on the store — nothing to do.`);
@@ -99,16 +99,18 @@ const upload = await apiJson(
   { method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: readFileSync(EXTENSION_ZIP) },
 );
 if (!upload.ok) throw new Error(`Upload failed: HTTP ${upload.status} ${JSON.stringify(upload.data).slice(0, 300)}`);
-console.log('Uploaded, waiting for processing...');
 
-// Poll until the upload is processed.
-let state;
-for (let i = 0; i < 60; i++) {
+// The upload response already carries the state; poll fetchStatus only
+// while it's still IN_PROGRESS.
+let state = upload.data.uploadState;
+console.log(`Uploaded (crxVersion=${upload.data.crxVersion ?? 'n/a'}, state=${state ?? 'n/a'}), waiting for processing...`);
+for (let i = 0; i < 60 && state === 'IN_PROGRESS'; i++) {
   await new Promise((r) => setTimeout(r, 5000));
   const status = await apiJson(`${base}:fetchStatus`, token);
-  state = status.data.lastAsyncUploadState;
-  if (state === 'SUCCEEDED') break;
-  if (state === 'FAILED') throw new Error(`Store rejected the package: ${JSON.stringify(status.data).slice(0, 300)}`);
+  state = status.data.lastAsyncUploadState ?? state;
+}
+if (state === 'FAILED' || state === 'NOT_FOUND') {
+  throw new Error(`Store rejected the package: ${JSON.stringify(upload.data).slice(0, 300)}`);
 }
 if (state !== 'SUCCEEDED') throw new Error(`Timed out waiting for upload state, last: ${state}`);
 
