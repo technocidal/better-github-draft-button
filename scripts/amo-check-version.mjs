@@ -24,7 +24,7 @@ const jwt = `${enc({ alg: 'HS256', typ: 'JWT' })}.${enc({
   exp: now + 300,
 })}.${crypto.createHmac('sha256', AMO_API_SECRET).update(`${enc({ alg: 'HS256', typ: 'JWT' })}.${enc({ iss: AMO_API_KEY, iat: now, exp: now + 300 })}`).digest('base64url')}`;
 
-const res = await fetch(`https://api.addons.mozilla.org/api/v5/addons/addon/${encodeURIComponent(guid)}/versions/`, {
+const res = await fetch(`https://addons.mozilla.org/api/v5/addons/addon/${encodeURIComponent(guid)}/versions/`, {
   headers: { Authorization: `JWT ${jwt}` },
 });
 if (!res.ok) throw new Error(`AMO versions list failed: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
