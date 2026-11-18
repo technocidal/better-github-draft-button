@@ -23,7 +23,21 @@ for (const [k, v] of Object.entries({ CWS_SERVICE_ACCOUNT_JSON, CWS_PUBLISHER_ID
   if (!v) throw new Error(`Missing env var ${k}`);
 }
 
-const sa = JSON.parse(CWS_SERVICE_ACCOUNT_JSON);
+let sa;
+try {
+  sa = JSON.parse(CWS_SERVICE_ACCOUNT_JSON);
+} catch {
+  // Sanitized diagnostic — never prints secret contents.
+  const v = CWS_SERVICE_ACCOUNT_JSON;
+  throw new Error(
+    `CWS_SERVICE_ACCOUNT_JSON is not valid JSON ` +
+    `(length=${v.length}, starts with ${JSON.stringify(v.slice(0, 12))}). ` +
+    `Paste the raw contents of the service-account key .json file.`,
+  );
+}
+if (!sa.client_email || !sa.private_key) {
+  throw new Error('CWS_SERVICE_ACCOUNT_JSON is missing client_email/private_key — not a service-account key?');
+}
 
 async function accessToken() {
   const now = Math.floor(Date.now() / 1000);
