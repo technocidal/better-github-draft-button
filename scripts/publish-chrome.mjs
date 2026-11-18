@@ -80,11 +80,14 @@ const token = await accessToken();
 console.log('Got access token.');
 const base = `https://chromewebstore.googleapis.com/v2/publishers/${CWS_PUBLISHER_ID}/items/${CWS_ITEM_ID}`;
 
-// Idempotency: skip if this version is already the live/draft version.
-const item = await apiJson(base, token);
-if (!item.ok) throw new Error(`fetch item failed: HTTP ${item.status} ${JSON.stringify(item.data).slice(0, 300)}`);
-const live = item.data?.version ?? item.data?.draftVersion;
-if (live === VERSION) {
+// Idempotency: skip if this version is already live or pending on the store.
+// (v2 has no items.get — fetchStatus is the readable endpoint.)
+const status0 = await apiJson(`${base}:fetchStatus`, token);
+if (!status0.ok) throw new Error(`fetchStatus failed: HTTP ${status0.status} ${JSON.stringify(status0.data).slice(0, 300)}`);
+const chans = status0.data?.publishedItemRevisionStatus?.distributionChannels ?? [];
+const pending = status0.data?.pendingItemRevisionStatus?.distributionChannels ?? [];
+const live = [...chans, ...pending].map((c) => c.crxVersion);
+if (live.includes(VERSION)) {
   console.log(`Version ${VERSION} already present on the store — nothing to do.`);
   process.exit(0);
 }
