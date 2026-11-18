@@ -1,7 +1,15 @@
 {
   "build": {
     "ignore_files": [
-      "assets"
+      "assets",
+      "safari",
+      "scripts",
+      ".github",
+      ".git",
+      ".DS_Store",
+      "AppIcon.icon",
+      "web-ext-config.json",
+      "dist"
     ]
   }
 }
