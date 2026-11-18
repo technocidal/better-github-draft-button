@@ -39,6 +39,20 @@ if (!sa.client_email || !sa.private_key) {
   throw new Error('CWS_SERVICE_ACCOUNT_JSON is missing client_email/private_key — not a service-account key?');
 }
 
+// Fetches a googleapis.com endpoint and parses JSON, surfacing HTTP status and
+// a body snippet (never headers/JWT) when the response isn't JSON.
+async function apiJson(url, token, init = {}) {
+  const res = await fetch(url, {
+    ...init,
+    headers: { Authorization: `Bearer ${token}`, 'x-goog-api-version': '2', ...(init.headers || {}) },
+  });
+  const body = await res.text();
+  if (!body.trimStart().startsWith('{')) {
+    throw new Error(`API ${init.method || 'GET'} ${url} -> HTTP ${res.status}, content-type=${res.headers.get('content-type')}, body starts: ${body.slice(0, 200)}`);
+  }
+  return { status: res.status, ok: res.ok, data: JSON.parse(body) };
+}
+
 async function accessToken() {
   const now = Math.floor(Date.now() / 1000);
   const enc = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
@@ -57,48 +71,49 @@ async function accessToken() {
   });
   const body = await res.text();
   if (!res.ok || !body.trimStart().startsWith('{')) {
-    // Google error pages are safe to quote; never log the JWT itself.
     throw new Error(`Token request failed: HTTP ${res.status}, content-type=${res.headers.get('content-type')}, body starts: ${body.slice(0, 200)}`);
   }
   return JSON.parse(body).access_token;
 }
 
 const token = await accessToken();
+console.log('Got access token.');
 const base = `https://chromewebstore.googleapis.com/v2/publishers/${CWS_PUBLISHER_ID}/items/${CWS_ITEM_ID}`;
-const headers = { Authorization: `Bearer ${token}`, 'x-goog-api-version': '2' };
 
 // Idempotency: skip if this version is already the live/draft version.
-const item = await (await fetch(base, { headers })).json();
-const live = item?.version ?? item?.draftVersion;
+const item = await apiJson(base, token);
+if (!item.ok) throw new Error(`fetch item failed: HTTP ${item.status} ${JSON.stringify(item.data).slice(0, 300)}`);
+const live = item.data?.version ?? item.data?.draftVersion;
 if (live === VERSION) {
   console.log(`Version ${VERSION} already present on the store — nothing to do.`);
   process.exit(0);
 }
 
 // Upload the package.
-const upload = await fetch(
+const upload = await apiJson(
   `https://chromewebstore.googleapis.com/upload/v2/publishers/${CWS_PUBLISHER_ID}/items/${CWS_ITEM_ID}:upload`,
-  { method: 'POST', headers: { ...headers, 'Content-Type': 'application/zip' }, body: readFileSync(EXTENSION_ZIP) },
+  token,
+  { method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: readFileSync(EXTENSION_ZIP) },
 );
-if (!upload.ok) throw new Error(`Upload failed: ${upload.status} ${await upload.text()}`);
+if (!upload.ok) throw new Error(`Upload failed: HTTP ${upload.status} ${JSON.stringify(upload.data).slice(0, 300)}`);
 console.log('Uploaded, waiting for processing...');
 
 // Poll until the upload is processed.
 let state;
 for (let i = 0; i < 60; i++) {
   await new Promise((r) => setTimeout(r, 5000));
-  const status = await (await fetch(`${base}:fetchStatus`, { headers })).json();
-  state = status.lastAsyncUploadState;
+  const status = await apiJson(`${base}:fetchStatus`, token);
+  state = status.data.lastAsyncUploadState;
   if (state === 'SUCCEEDED') break;
-  if (state === 'FAILED') throw new Error(`Store rejected the package: ${JSON.stringify(status)}`);
+  if (state === 'FAILED') throw new Error(`Store rejected the package: ${JSON.stringify(status.data).slice(0, 300)}`);
 }
 if (state !== 'SUCCEEDED') throw new Error(`Timed out waiting for upload state, last: ${state}`);
 
 // Publish (goes to review unless the account is trusted).
-const publish = await fetch(`${base}:publish`, {
+const publish = await apiJson(`${base}:publish`, token, {
   method: 'POST',
-  headers: { ...headers, 'Content-Type': 'application/json' },
+  headers: { 'Content-Type': 'application/json' },
   body: '{}',
 });
-if (!publish.ok) throw new Error(`Publish failed: ${publish.status} ${await publish.text()}`);
+if (!publish.ok) throw new Error(`Publish failed: HTTP ${publish.status} ${JSON.stringify(publish.data).slice(0, 300)}`);
 console.log(`Published version ${VERSION} to the Chrome Web Store.`);
