@@ -177,6 +177,14 @@
     }
   }
 
+  // Cached computed padding-left of the rail's "Close pull request" button,
+  // keyed by the rail list, so steady-state passes don't force style recalc.
+  const railPaddingCache = new WeakMap();
+
+  function setStyleIfChanged(el, prop, value) {
+    if (el.style[prop] !== value) el.style[prop] = value;
+  }
+
   // Insert the draft icon into a button that has no SVG, cloning the rail
   // button's icon when available and falling back to the bundled octicon.
   // Idempotent: no-op if the button already contains an <svg>.
@@ -282,7 +290,12 @@
     }
   }
 
+  // Set once the old merge-box button has been found and marked, so steady
+  // state passes skip the full-document button scan. Reset in revert().
+  let mergeBoxHandled = false;
+
   function revert() {
+    mergeBoxHandled = false;
     for (const [textNode, data] of emptiedTextNodes) {
       textNode.data = data;
     }
@@ -375,9 +388,10 @@
     }
 
     // 2. Merge-box button — style in place and align right edge with merge box
-    const mergeFound = findMergeBoxDraftBtn();
+    const mergeFound = mergeBoxHandled ? null : findMergeBoxDraftBtn();
     if (mergeFound) {
       const { btn: mergeBtn, container: mergeRow } = mergeFound;
+      mergeBoxHandled = true;
       if (!mergeBtn.getAttribute(ATTR)) {
         rememberStyle(mergeBtn);
         mergeBtn.setAttribute(ATTR, 'merge-btn');
@@ -415,11 +429,16 @@
 
       // Align the icon with the unstyled "Close pull request" button below:
       // copy its computed left padding so both icons start at the same x.
-      const closeBtn = Array.from(railList.querySelectorAll('button'))
-        .find(b => b !== railBtn && b.textContent.trim().toLowerCase().includes('close pull request'));
-      if (closeBtn) {
-        railBtn.style.paddingLeft = getComputedStyle(closeBtn).paddingLeft;
+      // Cached per rail list and only recomputed when the viewport width
+      // changes, so steady-state passes don't force style recalc.
+      let cache = railPaddingCache.get(railList);
+      if (!cache || cache.w !== window.innerWidth) {
+        const closeBtn = Array.from(railList.querySelectorAll('button'))
+          .find(b => b !== railBtn && b.textContent.trim().toLowerCase().includes('close pull request'));
+        cache = { w: window.innerWidth, pad: closeBtn ? getComputedStyle(closeBtn).paddingLeft : null };
+        railPaddingCache.set(railList, cache);
       }
+      if (cache.pad) setStyleIfChanged(railBtn, 'paddingLeft', cache.pad);
     }
 
     // 4. New dashboard: button inside the "Merge status" panel/dialog
@@ -454,7 +473,11 @@
 
   const domObserver = new MutationObserver((mutations) => {
     for (const m of mutations) {
-      if (m.addedNodes.length || m.removedNodes.length) {
+      // Ignore text-only churn (GitHub updates lots of text nodes on timers)
+      // — only element insertions/removals can reveal a new draft button.
+      const hasElement = Array.from(m.addedNodes).some(n => n.nodeType === 1) ||
+        Array.from(m.removedNodes).some(n => n.nodeType === 1);
+      if (hasElement) {
         scheduleEnhance();
         return;
       }
