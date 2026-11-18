@@ -28,6 +28,10 @@
     verticalAlign: 'middle',
     fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif',
     boxShadow: '0 1px 0 rgba(0,0,0,0.1)',
+    // Neutralize any `gap` GitHub's button CSS applies between children —
+    // the injected icon carries its own margin-inline-end, so icon-to-text
+    // spacing is uniformly 8px on every enhanced button.
+    gap: '0px',
   };
 
   // <summary> has a <details-dialog> child — inline-flex would pull it into
@@ -39,6 +43,10 @@
   const BTN_STYLES_RAIL    = { ...BTN_STYLES_BASE, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', padding: '6px 12px' };
   // New PR dashboard: button inside the "Merge status" panel/dialog.
   const BTN_STYLES_DIALOG  = { ...BTN_STYLES_BASE, display: 'inline-flex', alignItems: 'center', padding: '6px 16px' };
+
+  // Fallback draft icon (octicon git-pull-request-draft-16) for buttons that
+  // have no SVG of their own. Used when the rail button's icon can't be cloned.
+  const DRAFT_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3.25 1A2.25 2.25 0 0 1 4 5.372v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.251 2.251 0 0 1 3.25 1Zm9.5 14a2.25 2.25 0 1 1 0-4.5 2.25 2.25 0 0 1 0 4.5ZM2.5 3.25a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0ZM3.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm9.5 0a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM14 7.5a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm0-4.25a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Z"/></svg>';
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -167,6 +175,33 @@
     if (!originalStyles.has(el)) {
       originalStyles.set(el, el.getAttribute('style') || '');
     }
+  }
+
+  // Insert the draft icon into a button that has no SVG, cloning the rail
+  // button's icon when available and falling back to the bundled octicon.
+  // Idempotent: no-op if the button already contains an <svg>.
+  function ensureIcon(btn) {
+    if (btn.querySelector('svg')) return;
+    const railFound = findRailDraftBtn();
+    const srcSvg = railFound ? railFound.btn.querySelector('svg') : null;
+    let icon;
+    if (srcSvg) {
+      icon = srcSvg.cloneNode(true);
+      icon.removeAttribute('uid');
+      icon.setAttribute('fill', 'currentColor');
+    } else {
+      const tpl = document.createElement('template');
+      tpl.innerHTML = DRAFT_ICON_SVG;
+      icon = tpl.content.firstChild;
+    }
+    icon.setAttribute('aria-hidden', 'true');
+    // Icon-to-text spacing via margin (not flex gap) so it also works in
+    // inline-block contexts like <summary>, where `gap` has no effect.
+    // Fine-tuned pixel offset centers the 16px icon against 20px line-height.
+    icon.style.marginInlineEnd = '8px';
+    icon.style.marginInlineStart = '0px';
+    icon.style.verticalAlign = '-3px';
+    btn.insertBefore(icon, btn.firstChild);
   }
 
   function injectStyles() {
@@ -335,6 +370,8 @@
           removeStillInProgressLabel(container, btn);
         }
       }
+      // Old sidebar button has no icon either — give it the draft icon.
+      ensureIcon(btn);
     }
 
     // 2. Merge-box button — style in place and align right edge with merge box
@@ -354,6 +391,8 @@
         // Two frames so fonts/images have settled before measuring.
         requestAnimationFrame(() => requestAnimationFrame(() => alignMergeRow(mergeRow)));
       }
+      // Keep the draft icon here too.
+      ensureIcon(mergeBtn);
     }
 
     // 3. New dashboard: trailing-rail button in "Pull request actions" list
@@ -384,6 +423,10 @@
         dialogBtn.setAttribute(ATTR, 'dialog-btn');
         Object.assign(dialogBtn.style, BTN_STYLES_DIALOG);
       }
+      // The dialog button has no icon — ensureIcon() is idempotent and runs
+      // on every pass because the rail button may not exist yet when the
+      // dialog first opens.
+      ensureIcon(dialogBtn);
     }
   }
 
