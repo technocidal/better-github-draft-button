@@ -27,9 +27,12 @@ VERSION="${TAG#v}"
 echo "ci_post_clone: setting MARKETING_VERSION=$VERSION (from tag $TAG)"
 
 cd "$REPO/safari"
-# new-marketing-version sets MARKETING_VERSION; plain new-version would set
-# CURRENT_PROJECT_VERSION, which Xcode Cloud manages itself. -all goes BEFORE
-# the subcommand (agvtool [-all] new-marketing-version <version>) and is needed
-# because MARKETING_VERSION is set per-target in the pbxproj (not project-level),
-# so target-level settings must be updated too.
-agvtool -all new-marketing-version "$VERSION"
+# Set MARKETING_VERSION directly in the pbxproj instead of via agvtool:
+# agvtool's new-marketing-version argument parsing differs across Xcode versions
+# (-all after the subcommand -> "requires a single argument"). MARKETING_VERSION
+# is set per-target (8 build configurations), so rewrite every occurrence.
+# (macOS sed requires the empty -i argument.)
+PBXPROJ="Better GitHub Draft Button.xcodeproj/project.pbxproj"
+sed -i '' "s/MARKETING_VERSION = [^;]*;/MARKETING_VERSION = $VERSION;/" "$PBXPROJ"
+grep -q "MARKETING_VERSION = $VERSION;" "$PBXPROJ" \
+  || { echo "ci_post_clone: failed to set MARKETING_VERSION=$VERSION" >&2; exit 1; }
