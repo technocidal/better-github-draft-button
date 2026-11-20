@@ -27,4 +27,6 @@ VERSION="${TAG#v}"
 echo "ci_post_clone: setting MARKETING_VERSION=$VERSION (from tag $TAG)"
 
 cd "$REPO/safari"
-agvtool new-version -all "$VERSION"
+# new-marketing-version sets MARKETING_VERSION; plain new-version would set
+# CURRENT_PROJECT_VERSION, which Xcode Cloud manages itself.
+agvtool new-marketing-version "$VERSION"
