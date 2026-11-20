@@ -61,34 +61,6 @@ jobs:
           AMO_API_SECRET: ${{ secrets.AMO_API_SECRET }}
         run: npx --yes web-ext sign --source-dir . --api-key "$AMO_API_KEY" --api-secret "$AMO_API_SECRET" --channel listed
 
-  sync-ios-version:
-    # Xcode Cloud builds from the repo, so commit the aligned version back to
-    # main to trigger a matching App Store build/publish.
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Bump Xcode project version and push
-        env:
-          VERSION: ${{ github.ref_name }}
-          BUILD_NUMBER: ${{ github.run_number }}
-        run: |
-          VERSION="${VERSION#v}" node scripts/bump-ios-version.mjs
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "safari/Better GitHub Draft Button.xcodeproj/project.pbxproj"
-          if git diff --cached --quiet; then
-            echo "already aligned"
-          else
-            git commit -m "chore: bump iOS/macOS version to ${VERSION#v} [skip ci]"
-            git push
-          fi
-
   publish-chrome:
     needs: build
     runs-on: ubuntu-latest
