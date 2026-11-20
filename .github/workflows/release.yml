@@ -82,8 +82,17 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add "safari/Better GitHub Draft Button.xcodeproj/project.pbxproj"
-          git diff --cached --quiet && echo "already aligned" || \
-            git commit -m "chore: bump iOS/macOS version to ${VERSION#v} [skip ci]" && git push
+          if git diff --cached --quiet; then
+            echo "already aligned — tag already points at a bumped commit"
+          else
+            git commit -m "chore: bump iOS/macOS version to ${VERSION#v} [skip ci]"
+            git push
+            # Move the tag to the bump commit so Xcode Cloud builds the
+            # ref that carries the aligned version.
+            git tag -f "$VERSION" HEAD
+            git push --force origin "refs/tags/$VERSION"
+            echo "tag $VERSION now points at the version-bump commit"
+          fi
 
   publish-chrome:
     needs: build
