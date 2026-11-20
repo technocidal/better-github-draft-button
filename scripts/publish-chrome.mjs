@@ -95,12 +95,22 @@ if (published.includes(VERSION) && pubState === 'PUBLISHED') {
 const needsUpload = !submitted.includes(VERSION);
 
 // Upload the package (unless this version was already uploaded).
-if (needsUpload) {
-  const upload = await apiJson(
+async function uploadPackage() {
+  return apiJson(
     `https://chromewebstore.googleapis.com/upload/v2/publishers/${CWS_PUBLISHER_ID}/items/${CWS_ITEM_ID}:upload`,
     token,
     { method: 'POST', headers: { 'Content-Type': 'application/zip' }, body: readFileSync(EXTENSION_ZIP) },
   );
+}
+
+if (needsUpload) {
+  let upload = await uploadPackage();
+  // An item with a submission in review is locked — cancel it and retry once.
+  if (!upload.ok && JSON.stringify(upload.data).includes('NOT_UPDATEABLE')) {
+    console.log('Item is in review — cancelling the pending submission and retrying upload.');
+    await apiJson(`${base}:cancelSubmission`, token, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    upload = await uploadPackage();
+  }
   if (!upload.ok) throw new Error(`Upload failed: HTTP ${upload.status} ${JSON.stringify(upload.data).slice(0, 300)}`);
 
   // The upload response already carries the state; poll fetchStatus only
