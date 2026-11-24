@@ -440,12 +440,12 @@
         railBtn.setAttribute(ATTR, 'rail-btn');
         Object.assign(railBtn.style, BTN_STYLES_RAIL);
 
-        // Make the <li> wrapper clean so the full-width button sits flush.
+        // Keep the full-width button separated from the preceding control.
         const li = railBtn.closest('li');
         if (li && railList && railList.contains(li)) {
           rememberStyle(li);
           li.setAttribute(ATTR, 'rail-li');
-          Object.assign(li.style, { listStyle: 'none', padding: '0', margin: '0 0 4px 0' });
+          Object.assign(li.style, { listStyle: 'none', padding: '8px 0 0', margin: '0 0 4px 0' });
         }
       }
 
