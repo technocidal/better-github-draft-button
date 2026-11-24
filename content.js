@@ -43,7 +43,7 @@
   // New PR dashboard: trailing-rail action button (inside "Pull request
   // actions" list). Full-width block, icon left-aligned with a gap so it
   // lines up with the unstyled "Close pull request" button below it.
-  const BTN_STYLES_RAIL    = { ...BTN_STYLES_BASE, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', margin: '0', padding: '6px 12px' };
+  const BTN_STYLES_RAIL    = { ...BTN_STYLES_BASE, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', width: '100%', padding: '6px 12px' };
   // New PR dashboard: button inside the "Merge status" modal dialog. Inline
   // block, slightly larger padding for the dialog context.
   const BTN_STYLES_DIALOG  = { ...BTN_STYLES_BASE, display: 'inline-flex', alignItems: 'center', padding: '6px 16px' };
@@ -440,12 +440,12 @@
         railBtn.setAttribute(ATTR, 'rail-btn');
         Object.assign(railBtn.style, BTN_STYLES_RAIL);
 
-        // Make the <li> wrapper clean so the full-width button sits flush.
+        // Keep the full-width button separated from the preceding control.
         const li = railBtn.closest('li');
         if (li && railList && railList.contains(li)) {
           rememberStyle(li);
           li.setAttribute(ATTR, 'rail-li');
-          Object.assign(li.style, { listStyle: 'none', padding: '0', margin: '0 0 4px 0' });
+          Object.assign(li.style, { listStyle: 'none', padding: '8px 0 0', margin: '0 0 4px 0' });
         }
       }
 
